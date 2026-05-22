@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fikir Olgunlaştırıcı</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:           #F7F3EE;
+  --surface:      #FFFFFF;
+  --accent:       #D4622A;
+  --accent-10:    rgba(212,98,42,0.10);
+  --accent-20:    rgba(212,98,42,0.20);
+  --teal:         #2A6B5C;
+  --teal-10:      rgba(42,107,92,0.10);
+  --amber:        #C49A2A;
+  --amber-10:     rgba(196,154,42,0.10);
+  --blue:         #3A5A8C;
+  --blue-10:      rgba(58,90,140,0.10);
+  --blue-20:      rgba(58,90,140,0.20);
+  --text:         #1A1208;
+  --muted:        #7A6A5A;
+  --border:       #E5DDD5;
+  --dark:         #1A1208;
+  --radius:       12px;
+  --shadow:       0 2px 16px rgba(26,18,8,0.07),0 1px 3px rgba(26,18,8,0.05);
+  --sidebar-w:    56px;
+  --sidebar-exp:  210px;
+  --header-h:     60px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  min-height: 100vh;
+  padding-right: var(--sidebar-w);
+  transition: padding-right 0.25s ease;
+}
+
+/* ─── Header ────────────────────────────────────────────── */
+#hdr {
+  position: sticky; top: 0; z-index: 200;
+  height: var(--header-h);
+  background: var(--dark);
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 20px;
+  color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.hdr-logo {
+  display: flex; align-items: center; gap: 9px; flex-shrink: 0;
+}
+.hdr-mark {
+  width: 30px; height: 30px; border-radius: 7px;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700; color: #fff;
+  font-family: 'Playfair Display', serif; flex-shrink: 0;
+}
+.hdr-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 14px; font-weight: 600;
+  color: rgba(255,255,255,0.85); white-space: nowrap;
+}
+.hdr-idea {
+  flex: 1; font-size: 12px; color: rgba(255,255,255,0.4);
+  font-style: italic; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; text-align: center;
+}
+.hdr-right {
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.hdr-stat {
+  font-size: 12px; color: rgba(255,255,255,0.6); white-space: nowrap;
+}
+.hdr-bar {
+  width: 72px; height: 3px; background: rgba(255,255,255,0.12);
+  border-radius: 99px; overflow: hidden;
+}
+.hdr-bar-fill {
+  height: 100%; background: var(--accent);
+  border-radius: 99px; width: 0%;
+  transition: width 0.4s cubic-bezier(.4,0,.2,1);
+}
+#btn-submit {
+  padding: 7px 18px; border-radius: 7px; border: none;
+  background: var(--accent); color: #fff;
+  font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: opacity 0.2s, transform 0.15s;
+}
+#btn-submit:disabled { opacity: 0.28; cursor: not-allowed; }
+#btn-submit:not(:disabled):hover { opacity: 0.88; transform: translateY(-1px); }
+
+/* ─── Right Sidebar ─────────────────────────────────────── */
+#sidebar {
+  position: fixed; top: 0; right: 0;
+  width: var(--sidebar-w); height: 100vh;
+  background: var(--dark); z-index: 300;
+  display: flex; flex-direction: column;
+  border-left: 1px solid rgba(255,255,255,0.05);
+  transition: width 0.25s cubic-bezier(.4,0,.2,1);
+  overflow: hidden;
+}
+#sidebar:hover { width: var(--sidebar-exp); }
+
+.sb-head {
+  height: var(--header-h); flex-shrink: 0;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  display: flex; align-items: center; padding: 0 16px;
+  overflow: hidden;
+}
+.sb-head-lbl {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; color: rgba(255,255,255,0.25);
+  white-space: nowrap; opacity: 0; transition: opacity 0.18s 0.06s;
+}
+#sidebar:hover .sb-head-lbl { opacity: 1; }
+
+.sb-nav { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 6px 0; scrollbar-width: none; }
+.sb-nav::-webkit-scrollbar { display: none; }
+
+.sb-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 9px 16px; cursor: pointer; position: relative;
+  min-width: var(--sidebar-exp); transition: background 0.15s;
+}
+.sb-item:hover { background: rgba(255,255,255,0.05); }
+.sb-item.active { background: rgba(255,255,255,0.04); }
+.sb-item::before {
+  content: ''; position: absolute; left: 0; top: 18%; bottom: 18%;
+  width: 3px; background: var(--accent); border-radius: 0 3px 3px 0;
+  opacity: 0; transition: opacity 0.2s;
+}
+.sb-item.active::before { opacity: 1; }
+
+.sb-icon {
+  width: 24px; height: 24px; border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; flex-shrink: 0;
+}
+.sb-info {
+  flex: 1; overflow: hidden; opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity 0.18s 0.06s, transform 0.18s 0.06s;
+  white-space: nowrap;
+}
+#sidebar:hover .sb-info { opacity: 1; transform: translateX(0); }
+.sb-lbl { font-size: 11.5px; font-weight: 500; color: rgba(255,255,255,0.75); }
+.sb-dots { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 2px; max-width: 90px; }
+.sb-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(255,255,255,0.15); transition: background 0.3s; flex-shrink: 0;
+}
+.sb-dot.done { background: var(--teal); }
+
+.sb-foot {
+  border-top: 1px solid rgba(255,255,255,0.07); padding: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+#btn-submit-sb {
+  width: 32px; height: 32px; border-radius: 8px; border: none;
+  background: var(--accent); color: #fff; font-size: 15px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.2s; flex-shrink: 0;
+}
+#btn-submit-sb:disabled { opacity: 0.22; cursor: not-allowed; }
+
+/* ─── Main ──────────────────────────────────────────────── */
+#main {
+  max-width: 820px; margin: 0 auto;
+  padding: 36px 28px 100px;
+  display: flex; flex-direction: column; gap: 52px;
+}
+
+/* ─── Category Section ──────────────────────────────────── */
+.cat-sec { display: flex; flex-direction: column; gap: 14px; }
+.cat-hdr {
+  display: flex; align-items: center; gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--border);
+}
+.cat-ico-lg {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.cat-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 19px; font-weight: 600; color: var(--text);
+}
+.cat-cnt {
+  margin-left: auto; font-size: 11px; font-weight: 500;
+  color: var(--muted); background: var(--border);
+  padding: 3px 11px; border-radius: 99px;
+}
+
+/* ─── Question Card ─────────────────────────────────────── */
+.q-card {
+  background: var(--surface); border-radius: var(--radius);
+  box-shadow: var(--shadow); border-left: 4px solid var(--border);
+  padding: 20px 20px 16px; transition: border-color 0.25s;
+}
+.q-card.s-answered  { border-left-color: var(--teal); }
+.q-card.s-ai        { border-left-color: var(--amber); }
+.q-card.s-undecided { border-left-color: var(--blue); }
+
+.q-top {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.q-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 99px; color: #fff;
+}
+.q-num { font-size: 11px; color: var(--muted); font-weight: 500; }
+.q-status {
+  margin-left: auto; font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 99px; display: none;
+  align-items: center; gap: 4px;
+}
+.s-answered  .q-status.st-answered  { display: flex; background: var(--teal-10); color: var(--teal); }
+.s-ai        .q-status.st-ai        { display: flex; background: var(--amber-10); color: var(--amber); }
+.s-undecided .q-status.st-undecided { display: flex; background: var(--blue-10); color: var(--blue); }
+
+.q-text {
+  font-size: 15.5px; font-weight: 500; color: var(--text);
+  line-height: 1.5; margin-bottom: 14px;
+}
+
+/* ─── Options ───────────────────────────────────────────── */
+.opts {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 12px;
+}
+@media (max-width: 520px) { .opts { grid-template-columns: 1fr; } }
+
+.opt {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 11px 13px; border-radius: 9px;
+  border: 1.5px solid var(--border); background: transparent;
+  cursor: pointer; text-align: left;
+  transition: border-color 0.14s, background 0.14s;
+}
+.opt:hover:not(:disabled) { border-color: #C8B5A8; background: rgba(26,18,8,0.02); }
+.opt.sel { border-color: var(--accent); background: var(--accent-10); }
+.opt:disabled { opacity: 0.38; cursor: not-allowed; }
+
+.opt-top { display: flex; align-items: center; gap: 8px; }
+.opt-letter {
+  width: 21px; height: 21px; border-radius: 5px;
+  background: var(--border); font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; color: var(--muted);
+  transition: background 0.14s, color 0.14s;
+}
+.opt.sel .opt-letter { background: var(--accent); color: #fff; }
+.opt-text { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; }
+.opt-desc {
+  font-size: 11.5px; color: var(--muted); font-style: italic;
+  line-height: 1.4; padding-left: 29px;
+}
+
+/* ─── Actions ───────────────────────────────────────────── */
+.q-acts { display: flex; gap: 7px; flex-wrap: wrap; }
+.act-btn {
+  padding: 5px 12px; border-radius: 6px; font-size: 11.5px; font-weight: 500;
+  font-family: 'DM Sans', sans-serif; cursor: pointer; border: 1.5px solid;
+  background: transparent; transition: all 0.14s;
+}
+.act-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.act-custom { border-color: var(--border); color: var(--muted); }
+.act-custom:hover:not(:disabled), .act-custom.on { border-color: var(--text); color: var(--text); }
+.act-ai { border-color: rgba(196,154,42,0.35); color: var(--amber); }
+.act-ai:hover:not(:disabled), .act-ai.on { border-color: var(--amber); background: var(--amber-10); }
+.act-undecided { border-color: rgba(58,90,140,0.35); color: var(--blue); }
+.act-undecided:hover:not(:disabled), .act-undecided.on { border-color: var(--blue); background: var(--blue-10); }
+
+/* ─── Custom Textarea ───────────────────────────────────── */
+.custom-box { display: none; flex-direction: column; gap: 7px; margin-top: 11px; }
+.custom-box.open { display: flex; }
+.custom-ta {
+  width: 100%; padding: 10px 13px; border-radius: 8px;
+  border: 1.5px solid var(--border); background: var(--bg);
+  color: var(--text); font-family: 'DM Sans', sans-serif;
+  font-size: 13px; resize: vertical; min-height: 68px;
+  outline: none; transition: border-color 0.14s;
+}
+.custom-ta:focus { border-color: var(--accent); }
+.custom-ta::placeholder { color: var(--muted); }
+.btn-save {
+  align-self: flex-start; padding: 6px 16px; border-radius: 7px; border: none;
+  background: var(--accent); color: #fff; font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.14s;
+}
+.btn-save:hover { opacity: 0.84; }
+
+/* ─── Undecided Note Box ─────────────────────────────────────── */
+.undecided-box {
+  display: none; flex-direction: column; gap: 7px; margin-top: 11px;
+  padding: 12px 14px; border-radius: 9px;
+  background: var(--blue-10); border: 1.5px solid var(--blue-20);
+  animation: slideDown 0.18s ease;
+}
+.undecided-box.open { display: flex; }
+@keyframes slideDown {
+  from { opacity:0; transform:translateY(-5px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.undecided-hint {
+  font-size: 11px; color: var(--blue); font-weight: 500;
+}
+.undecided-ta {
+  width: 100%; padding: 9px 12px; border-radius: 7px; box-sizing: border-box;
+  border: 1.5px solid var(--blue-20); background: var(--surface);
+  color: var(--text); font-family: 'DM Sans', sans-serif;
+  font-size: 12.5px; resize: vertical; min-height: 60px;
+  outline: none; transition: border-color 0.14s;
+}
+.undecided-ta:focus { border-color: var(--blue); }
+.undecided-ta::placeholder { color: var(--muted); }
+.btn-undecided-save {
+  align-self: flex-end; padding: 7px 16px; border-radius: 7px; border: none;
+  background: var(--blue); color: #fff; font-family: 'DM Sans', sans-serif;
+  font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.14s;
+}
+.btn-undecided-save:hover { opacity: 0.84; }
+
+/* ─── Loading ───────────────────────────────────────────── */
+#loading {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 60vh; gap: 16px;
+}
+.spin {
+  width: 34px; height: 34px; border: 3px solid var(--border);
+  border-top-color: var(--accent); border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.load-txt {
+  font-family: 'Playfair Display', serif;
+  font-size: 17px; color: var(--muted);
+}
+
+/* ─── Success ───────────────────────────────────────────── */
+#success {
+  display: none; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 80vh;
+  gap: 18px; text-align: center; padding: 40px;
+}
+#success.visible { display: flex; }
+.success-ring {
+  width: 76px; height: 76px; border-radius: 50%;
+  border: 3px solid var(--teal);
+  display: flex; align-items: center; justify-content: center;
+  animation: pop 0.5s cubic-bezier(.175,.885,.32,1.275);
+}
+@keyframes pop { from { transform:scale(0);opacity:0; } to { transform:scale(1);opacity:1; } }
+.success-chk { font-size: 34px; color: var(--teal); }
+#success h2 { font-family:'Playfair Display',serif; font-size:26px; color:var(--text); }
+#success p  { color:var(--muted); max-width:340px; font-size:14px; }
+#success .s-small { font-size:12px; color:var(--muted); opacity:.65; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="hdr">
+  <div class="hdr-logo">
+    <div class="hdr-mark">⬡</div>
+    <span class="hdr-title">Fikir Olgunlaştırıcı</span>
+  </div>
+  <div class="hdr-idea" id="hdr-idea"></div>
+  <div class="hdr-right">
+    <span class="hdr-stat" id="prog-txt">0 / 0</span>
+    <div class="hdr-bar"><div class="hdr-bar-fill" id="prog-fill"></div></div>
+    <button id="btn-submit" disabled onclick="submitAnswers()">Kararları Kaydet →</button>
+  </div>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar">
+  <div class="sb-head"><span class="sb-head-lbl">Bölümler</span></div>
+  <div class="sb-nav" id="sb-nav"></div>
+  <div class="sb-foot">
+    <button id="btn-submit-sb" disabled title="Kararları Kaydet" onclick="submitAnswers()">✓</button>
+  </div>
+</div>
+
+<!-- Loading -->
+<div id="loading"><div class="spin"></div><div class="load-txt">Sorular yükleniyor…</div></div>
+
+<!-- Main (built dynamically) -->
+<div id="main" style="display:none"></div>
+
+<!-- Success -->
+<div id="success">
+  <div class="success-ring"><span class="success-chk">✓</span></div>
+  <h2>Kararlar Kaydedildi!</h2>
+  <p>Tüm yanıtlarınız proje dizinine <strong>decisions.json</strong> olarak yazıldı.</p>
+  <p class="s-small">Bu pencereyi kapatabilirsiniz.</p>
+</div>
+
+<script>
+const LETTERS = ['A','B','C','D'];
+let PAGE_MODE = 'clarification'; // set on init
+
+const CATS = {
+  project_vision:  { lbl:'Proje Vizyonu',    ico:'🌱', clr:'#8B4513', bg:'rgba(139,69,19,0.12)'  },
+  core_flows:      { lbl:'Kullanıcı Akışları',ico:'🔄', clr:'#2A4A8C', bg:'rgba(42,74,140,0.12)'  },
+  feature_scope:   { lbl:'Özellik Kapsamı',  ico:'✨',  clr:'#6B2A8C', bg:'rgba(107,42,140,0.12)' },
+  content_model:   { lbl:'İçerik Modeli',    ico:'📐',  clr:'#2A6B3C', bg:'rgba(42,107,60,0.12)'  },
+  tech_stack:      { lbl:'Teknoloji',        ico:'⚙️',  clr:'#D4622A', bg:'rgba(212,98,42,0.12)'  },
+  architecture:    { lbl:'Mimari',        ico:'🏗️',  clr:'#2A6B5C', bg:'rgba(42,107,92,0.12)'  },
+  database:        { lbl:'Veritabanı',    ico:'🗄️',  clr:'#3A5A8C', bg:'rgba(58,90,140,0.12)'  },
+  ui_ux:           { lbl:'UI / UX',       ico:'🎨',  clr:'#8B2A6B', bg:'rgba(139,42,107,0.12)' },
+  security:        { lbl:'Güvenlik',      ico:'🔒',  clr:'#B83232', bg:'rgba(184,50,50,0.12)'  },
+  performance:     { lbl:'Performans',    ico:'⚡',  clr:'#C49A2A', bg:'rgba(196,154,42,0.12)' },
+  api:             { lbl:'API',           ico:'🔌',  clr:'#2A6B5C', bg:'rgba(42,107,92,0.12)'  },
+  deployment:      { lbl:'Deployment',    ico:'🚀',  clr:'#4A3A8C', bg:'rgba(74,58,140,0.12)'  },
+  business_logic:  { lbl:'İş Mantığı',   ico:'💡',  clr:'#6B4A2A', bg:'rgba(107,74,42,0.12)'  },
+};
+
+const sid       = location.pathname.split('/').pop();
+const answers   = {};           // {qid: {answer,ai_decides,custom}}
+let   total     = 0;
+
+/* ── Init ─────────────────────────────────────────────────── */
+(async () => {
+  try {
+    const r = await fetch(`/api/session/${sid}`);
+    if (!r.ok) throw new Error(r.statusText);
+    const d = await r.json();
+    total = d.questions.length;
+    PAGE_MODE = d.mode || 'clarification';
+    document.getElementById('loading').style.display  = 'none';
+    document.getElementById('main').style.display     = 'flex';
+    document.getElementById('hdr-idea').textContent   = d.idea;
+    if (PAGE_MODE === 'plan') {
+      document.querySelector('.hdr-title').textContent = 'Planlama Netleştirici';
+      document.querySelector('.hdr-mark').textContent  = '📋';
+      document.title = 'Planlama Netleştirici';
+    }
+    buildUI(d);
+    observeCategories(PAGE_MODE);
+    updateProg();
+  } catch(e) {
+    document.getElementById('loading').innerHTML =
+      `<span style="color:#B83232">❌ Oturum yüklenemedi: ${e.message}</span>`;
+  }
+})();
+
+/* ── Build full UI ─────────────────────────────────────────── */
+function buildUI(data) {
+  const main  = document.getElementById('main');
+  const sbNav = document.getElementById('sb-nav');
+
+  if (PAGE_MODE === 'plan') {
+    buildPlanUI(data, main, sbNav);
+  } else {
+    buildClarificationUI(data, main, sbNav);
+  }
+}
+
+function buildClarificationUI(data, main, sbNav) {
+  const grouped = {};
+  for (const q of data.questions) (grouped[q.category] = grouped[q.category]||[]).push(q);
+
+  for (const [cat, qs] of Object.entries(grouped)) {
+    const m = CATS[cat] || { lbl:cat, ico:'📋', clr:'#7A6A5A', bg:'rgba(122,106,90,0.12)' };
+
+    /* sidebar item */
+    const si = el('div','sb-item'); si.id = `si-${cat}`;
+    si.onclick = () => document.getElementById(`s-${cat}`).scrollIntoView({behavior:'smooth',block:'start'});
+    const sico = el('div','sb-icon'); sico.style.background = m.bg; sico.textContent = m.ico;
+    const sinf = el('div','sb-info');
+    sinf.innerHTML = `<div class="sb-lbl">${m.lbl}</div><div class="sb-dots" id="dots-${cat}"></div>`;
+    si.append(sico,sinf); sbNav.appendChild(si);
+    qs.forEach(q => {
+      const d = el('span','sb-dot'); d.id = `dot-${q.id}`;
+      document.getElementById(`dots-${cat}`).appendChild(d);
+    });
+
+    /* category section */
+    const sec = el('div','cat-sec'); sec.id = `s-${cat}`;
+    const hdr = el('div','cat-hdr');
+    hdr.innerHTML = `
+      <div class="cat-ico-lg" style="background:${m.bg}">${m.ico}</div>
+      <div class="cat-name">${m.lbl}</div>
+      <span class="cat-cnt">${qs.length} soru</span>`;
+    sec.appendChild(hdr);
+    qs.forEach((q,i) => sec.appendChild(buildCard(q, i+1, m, 'clarification')));
+    main.appendChild(sec);
+  }
+}
+
+function buildPlanUI(data, main, sbNav) {
+  data.questions.forEach((q, i) => {
+    /* sidebar item — Q1/Q2/Q3 style */
+    const si = el('div','sb-item'); si.id = `si-${q.id}`;
+    si.onclick = () => document.getElementById(`c-${q.id}`)?.scrollIntoView({behavior:'smooth',block:'start'});
+
+    const num = el('div','sb-icon');
+    num.style.background  = 'rgba(255,255,255,0.08)';
+    num.style.fontSize    = '10px';
+    num.style.fontWeight  = '700';
+    num.style.color       = 'rgba(255,255,255,0.7)';
+    num.textContent       = `Q${i+1}`;
+
+    const sinf = el('div','sb-info');
+    const lbl  = el('div','sb-lbl');
+    const preview = q.question.slice(0,38) + (q.question.length>38?'…':'');
+    lbl.textContent = preview;
+    const dots = el('div','sb-dots');
+    const dot  = el('span','sb-dot'); dot.id = `dot-${q.id}`;
+    dots.appendChild(dot);
+    sinf.append(lbl, dots);
+    si.append(num, sinf);
+    sbNav.appendChild(si);
+
+    /* flat card — no category meta */
+    const card = buildCard(q, i+1, {lbl:'',ico:'',clr:'#7A6A5A',bg:'transparent'}, 'plan');
+    main.appendChild(card);
+  });
+}
+
+/* ── Build Question Card ───────────────────────────────────── */
+function buildCard(q, num, m, mode) {
+  mode = mode || PAGE_MODE;
+  const card = el('div','q-card'); card.id = `c-${q.id}`;
+
+  /* top row */
+  const top = el('div','q-top');
+  const badgeHtml = (mode === 'plan' || !m.lbl)
+    ? ''
+    : `<span class="q-badge" style="background:${m.clr}">${m.ico} ${m.lbl}</span>`;
+  top.innerHTML = `
+    ${badgeHtml}
+    <span class="q-num">Soru ${num}</span>
+    <span class="q-status st-answered">✓ Yanıtlandı</span>
+    <span class="q-status st-ai">✦ AI karar verecek</span>
+    <span class="q-status st-undecided">⚠ Kararsız</span>`;
+  card.appendChild(top);
+
+  /* question text */
+  const qt = el('div','q-text'); qt.textContent = q.question;
+  card.appendChild(qt);
+
+  /* options grid (always 4 options) */
+  const grid = el('div','opts'); grid.id = `g-${q.id}`;
+  const optBtns = [];
+  (q.options||[]).forEach((opt,i) => {
+    const desc = (q.option_descriptions||[])[i]||'';
+    const btn = el('button','opt');
+    btn.innerHTML = `
+      <div class="opt-top">
+        <span class="opt-letter">${LETTERS[i]}</span>
+        <span class="opt-text">${esc(opt)}</span>
+      </div>
+      ${desc ? `<div class="opt-desc">${esc(desc)}</div>` : ''}`;
+    btn.onclick = () => {
+      if (btn.disabled) return;
+      optBtns.forEach(b => b.classList.remove('sel'));
+      btn.classList.add('sel');
+      aiBtn.classList.remove('on');
+      aiBtn.disabled = false;
+      customBox.classList.remove('open');
+      customBtn.classList.remove('on');
+      undecidedBox.classList.remove('open'); undBtn.classList.remove('on');
+      setAns(q.id, opt, 'opt');
+    };
+    optBtns.push(btn); grid.appendChild(btn);
+  });
+  card.appendChild(grid);
+
+  /* actions */
+  const acts = el('div','q-acts');
+  const customBtn = el('button','act-btn act-custom'); customBtn.textContent = '✏ Kendi cevabımı yaz';
+  const aiBtn     = el('button','act-btn act-ai');     aiBtn.textContent     = '✦ AI KARAR VERSİN';
+  const undBtn    = el('button','act-btn act-undecided'); undBtn.textContent  = '⚠ KARAR VERİLEMEDİ';
+  acts.append(customBtn, aiBtn, undBtn);
+  card.appendChild(acts);
+
+  /* custom box */
+  const customBox = el('div','custom-box');
+  const ta  = el('textarea','custom-ta'); ta.placeholder = 'Cevabınızı buraya yazın…'; ta.rows = 3;
+  const sav = el('button','btn-save'); sav.textContent = 'Kaydet';
+  customBox.append(ta, sav); card.appendChild(customBox);
+
+  sav.onclick = () => {
+    const v = ta.value.trim(); if (!v) return;
+    optBtns.forEach(b => b.classList.remove('sel'));
+    aiBtn.classList.remove('on');
+    undecidedBox.classList.remove('open'); undBtn.classList.remove('on');
+    setAns(q.id, v, 'custom');
+  };
+
+  /* undecided note box */
+  const undecidedBox = el('div','undecided-box');
+  const undHint = el('p','undecided-hint');
+  undHint.textContent = 'İsterseniz neden kararsız kaldığınızı yazın (zorunlu değil). Ajan bu soruyu IDE\'de sizinle konuşacak.';
+  const undTa   = el('textarea','undecided-ta');
+  undTa.placeholder = 'Tereddüdünüzü kısaca açıklayın… (isteğe bağlı)';
+  const undSav  = el('button','btn-undecided-save'); undSav.textContent = 'Kaydet';
+  undecidedBox.append(undHint, undTa, undSav);
+  card.appendChild(undecidedBox);
+
+  /* action bindings */
+  customBtn.onclick = () => {
+    if (customBtn.disabled) return;
+    const o = customBox.classList.contains('open');
+    customBox.classList.toggle('open',!o); customBtn.classList.toggle('on',!o);
+    if (!o) ta.focus();
+  };
+
+  aiBtn.onclick = () => {
+    if (aiBtn.disabled) return;
+    if (aiBtn.classList.contains('on')) {
+      aiBtn.classList.remove('on');
+      optBtns.forEach(b=>{b.disabled=false;});
+      customBtn.disabled = undBtn.disabled = false;
+      delete answers[q.id]; cardState(q.id,''); updateProg();
+    } else {
+      optBtns.forEach(b=>{b.classList.remove('sel');b.disabled=true;});
+      customBtn.disabled = undBtn.disabled = true;
+      customBox.classList.remove('open'); customBtn.classList.remove('on');
+      undecidedBox.classList.remove('open'); undBtn.classList.remove('on');
+      aiBtn.classList.add('on');
+      setAns(q.id, null, 'ai');
+    }
+  };
+
+  undSav.onclick = () => {
+    const note = undTa.value.trim();
+    optBtns.forEach(b=>{b.classList.remove('sel');});
+    aiBtn.classList.remove('on');
+    customBox.classList.remove('open'); customBtn.classList.remove('on');
+    answers[q.id] = { answer: null, ai_decides: false, custom: false, undecided: true, undecided_note: note };
+    cardState(q.id, 'undecided');
+    updateProg();
+  };
+
+  undBtn.onclick = () => {
+    if (undBtn.disabled) return;
+    const o = undecidedBox.classList.contains('open');
+    undecidedBox.classList.toggle('open', !o);
+    undBtn.classList.toggle('on', !o);
+    if (!o) {
+      customBox.classList.remove('open'); customBtn.classList.remove('on');
+      undTa.focus();
+    }
+  };
+
+  return card;
+}
+
+/* ── Answer state ──────────────────────────────────────────── */
+function setAns(qid, value, type) {
+  answers[qid] = { answer:value, ai_decides:type==='ai', custom:type==='custom', undecided:false };
+  cardState(qid, type==='ai' ? 'ai' : 'answered');
+  updateProg();
+}
+
+function cardState(qid, state) {
+  const c = document.getElementById(`c-${qid}`); if (!c) return;
+  c.classList.remove('s-answered','s-ai','s-undecided');
+  if (state==='answered')  c.classList.add('s-answered');
+  if (state==='ai')        c.classList.add('s-ai');
+  if (state==='undecided') c.classList.add('s-undecided');
+  const dot = document.getElementById(`dot-${qid}`);
+  if (dot) dot.classList.toggle('done', state==='answered'||state==='ai'||state==='undecided');
+}
+
+/* ── Progress ──────────────────────────────────────────────── */
+function updateProg() {
+  const done = Object.keys(answers).length;
+  const pct  = total ? (done/total*100) : 0;
+  document.getElementById('prog-fill').style.width = pct+'%';
+  document.getElementById('prog-txt').textContent  = `${done} / ${total}`;
+  const ok = done >= total && total > 0;
+  document.getElementById('btn-submit').disabled    = !ok;
+  document.getElementById('btn-submit-sb').disabled = !ok;
+}
+
+/* ── Intersection observer (active sidebar highlight) ──────── */
+function observeCategories(mode) {
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      let siId;
+      if (mode === 'plan') {
+        // cards have id `c-{qid}`, sidebar items have id `si-{qid}`
+        siId = `si-${e.target.id.replace('c-','')}`;
+      } else {
+        // sections have id `s-{cat}`, sidebar items have id `si-{cat}`
+        siId = `si-${e.target.id.replace('s-','')}`;
+      }
+      document.getElementById(siId)?.classList.toggle('active', e.isIntersecting);
+    });
+  }, { rootMargin:'-8% 0px -78% 0px' });
+
+  if (mode === 'plan') {
+    document.querySelectorAll('.q-card').forEach(c => obs.observe(c));
+  } else {
+    document.querySelectorAll('.cat-sec').forEach(s => obs.observe(s));
+  }
+}
+
+/* ── Submit ────────────────────────────────────────────────── */
+async function submitAnswers() {
+  const hb = document.getElementById('btn-submit');
+  const sb = document.getElementById('btn-submit-sb');
+  hb.disabled = sb.disabled = true;
+  hb.textContent = 'Kaydediliyor…';
+  try {
+    const r = await fetch(`/api/session/${sid}/answers`,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({answers})
+    });
+    if (!r.ok) throw new Error((await r.json()).error||'Sunucu hatası');
+    document.getElementById('hdr').style.display     = 'none';
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('main').style.display    = 'none';
+    document.body.style.paddingRight = '0';
+    document.getElementById('success').classList.add('visible');
+  } catch(e) {
+    alert('Hata: '+e.message);
+    hb.disabled = false; hb.textContent = 'Kararları Kaydet →';
+    updateProg();
+  }
+}
+
+/* ── Utils ─────────────────────────────────────────────────── */
+function el(tag, cls='') {
+  const e = document.createElement(tag.split('.')[0]||'div');
+  if (cls) e.className = cls; return e;
+}
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
