@@ -2,12 +2,12 @@
 
 ![Idea Clarifier MCP overview](assets/idea-clarifier-overview.png)
 
-Idea Clarifier MCP turns an unclear product idea or a pending implementation plan into a structured decision session. An MCP host prepares targeted questions, the user answers them in a local browser UI, and the server writes the final decisions back into the target project as JSON.
+Idea Clarifier MCP turns an unclear product idea or a pending implementation plan into a structured decision session. New project ideas use an intent-first flow: the user first answers a short fixed set of option-based intent questions, optionally adding custom answers, then the MCP host prepares targeted product and technical questions from those answers. The server writes final decisions back into the target project as JSON.
 
 ## What It Does
 
 - Opens a browser-based Q&A session from an MCP tool call.
-- Supports deep clarification for new project ideas and shorter pre-plan clarification for existing projects.
+- Supports intent-first deep clarification for new project ideas and shorter pre-plan clarification for existing projects.
 - Keeps temporary session state in the target project for crash recovery.
 - Returns unresolved and AI-delegated decisions to the MCP host before final output is written.
 - Produces structured JSON that can feed planning, scoping, architecture, and implementation work.
@@ -16,20 +16,23 @@ Idea Clarifier MCP turns an unclear product idea or a pending implementation pla
 
 ```mermaid
 flowchart LR
-    A["MCP host creates questions"] --> B["Idea Clarifier MCP"]
-    B --> C["Local browser Q&A"]
-    C --> D["get_answers polling"]
-    D --> E["write_decisions"]
-    E --> F["decisions.json or plan_notes.json"]
+    A["start_intent_clarification"] --> B["Intent browser Q&A"]
+    B --> C["get_answers"]
+    C --> D["MCP host builds internal intent brief"]
+    D --> E["start_clarification"]
+    E --> F["Decision browser Q&A"]
+    F --> G["write_decisions"]
+    G --> H["decisions.json"]
 ```
 
 ## Tool Surface
 
 | Tool | Use case | Output |
 | --- | --- | --- |
-| `start_clarification` | New project idea clarification with categorized questions | Starts a browser session |
+| `start_intent_clarification` | Required first step for a new project idea | Starts a fixed option-based intent browser session |
+| `start_clarification` | Second-stage new project clarification with categorized questions | Starts a browser session |
 | `start_plan_clarification` | Focused clarification before planning changes in an existing project | Starts a browser session |
-| `get_answers` | Polls a session until the user submits answers | Answers, undecided items, and AI decision requests |
+| `get_answers` | Reads submitted answers after the user says they are done | Answers, undecided items, and AI decision requests |
 | `write_decisions` | Finalizes a completed session | `decisions.json` or `plan_notes.json` |
 
 ## Outputs
@@ -116,19 +119,23 @@ For an MCP host configuration, point the host at the same command and repository
 
 ## Session Contract
 
+For new project ideas, call `start_intent_clarification(idea, project_path)` first. It opens a fixed seven-question, option-based intent session and writes no output files. The user can add a custom answer alongside selected options. After the user submits, call `get_answers(session_id)` once, use the raw answers to build an internal intent brief, then generate the second-stage questions.
+
 `start_clarification` expects an `idea`, a `project_path`, and a non-empty list of questions. Each new-project question carries:
 
 - A unique `id`
 - A `category`
+- An explicit `type` for choice questions: `single_choice` when only one answer should win, `multi_choice` when multiple answers can be valid
 - A user-facing `question`
-- Exactly four `options`
-- Exactly four `option_descriptions`
+- One unique `decision_axis` concept managed by the agent; do not ask the same decision twice with different wording
+- 2-5 `options` for choice questions
+- Optional `option_descriptions`, one per option when provided
 
 `start_plan_clarification` uses the same four-option pattern without categories and is intended for a smaller set of targeted questions.
 
-After the browser session is submitted:
+After a decision browser session is submitted:
 
-1. Poll `get_answers(session_id)` until it returns `status: "completed"`.
+1. Wait until the user says they submitted the browser form, then call `get_answers(session_id)` once. Use `wait_seconds` for one long-poll call if needed.
 2. Discuss any `undecided_questions` with the user in the MCP host.
 3. Fill `ai_decisions` for questions delegated to the AI host.
 4. Call `write_decisions(session_id, ai_decisions)`.

@@ -366,6 +366,70 @@ body {
 #success h2 { font-family:'Playfair Display',serif; font-size:26px; color:var(--text); }
 #success p  { color:var(--muted); max-width:340px; font-size:14px; }
 #success .s-small { font-size:12px; color:var(--muted); opacity:.65; }
+
+/* ─── Glossary ──────────────────────────────────────────── */
+#gloss-sec { display: none; }
+#gloss-sec.visible { display: flex; flex-direction: column; gap: 0; }
+.gloss-card {
+  background: var(--surface); border-radius: var(--radius);
+  box-shadow: var(--shadow); border-left: 4px solid var(--teal);
+  overflow: hidden; transition: max-height 0.35s ease;
+  max-height: 999px;
+}
+.gloss-card.collapsed { max-height: 52px; }
+.gloss-hdr {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 20px; cursor: pointer; user-select: none;
+  transition: background 0.15s;
+}
+.gloss-hdr:hover { background: rgba(42,107,92,0.04); }
+.gloss-hdr-icon {
+  font-size: 18px; transition: transform 0.25s ease;
+  color: var(--teal);
+}
+.gloss-card.collapsed .gloss-hdr-icon { transform: rotate(-90deg); }
+.gloss-hdr-label {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px; font-weight: 600; color: var(--text);
+}
+.gloss-hdr-cnt {
+  margin-left: auto; font-size: 11px; font-weight: 500;
+  color: var(--muted); background: var(--teal-10);
+  padding: 3px 11px; border-radius: 99px;
+}
+.gloss-body {
+  padding: 0 20px 18px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+@media (max-width: 520px) { .gloss-body { grid-template-columns: 1fr; } }
+.gloss-item {
+  background: var(--bg); border-radius: 8px; padding: 12px 14px;
+  border: 1px solid var(--border); transition: border-color 0.14s;
+}
+.gloss-item:hover { border-color: var(--teal); }
+.gloss-term {
+  font-size: 13px; font-weight: 700; color: var(--teal);
+  font-family: 'DM Sans', sans-serif; margin-bottom: 4px;
+}
+.gloss-expl {
+  font-size: 12px; color: var(--muted); line-height: 1.5;
+  font-style: italic;
+}
+
+/* ─── Glossary preparing state ──────────────────────────── */
+.gloss-preparing {
+  display: flex; align-items: center; gap: 10px;
+  padding: 16px 20px; color: var(--muted);
+}
+.gloss-spinner {
+  width: 16px; height: 16px; border: 2px solid var(--border);
+  border-top-color: var(--teal); border-radius: 50%;
+  animation: spin 0.65s linear infinite; flex-shrink: 0;
+}
+.gloss-preparing-txt {
+  font-size: 13px; font-style: italic;
+}
+.gloss-card.collapsed .gloss-preparing { display: none; }
 </style>
 </head>
 <body>
@@ -397,7 +461,9 @@ body {
 <div id="loading"><div class="spin"></div><div class="load-txt">Sorular yükleniyor…</div></div>
 
 <!-- Main (built dynamically) -->
-<div id="main" style="display:none"></div>
+<div id="main" style="display:none">
+  <div id="gloss-sec"></div>
+</div>
 
 <!-- Success -->
 <div id="success">
@@ -430,42 +496,191 @@ const CATS = {
 const sid       = location.pathname.split('/').pop();
 const answers   = {};           // {qid: {answer,ai_decides,custom}}
 let   total     = 0;
+let   sessionToken = new URLSearchParams(location.search).get('token') || '';
+let   I18N = {};
 
-/* ── Init ─────────────────────────────────────────────────── */
-(async () => {
+async function initLocale() {
+  const lang = new URLSearchParams(location.search).get('lang') ||
+               (navigator.language||'').startsWith('tr') ? 'tr' : 'en';
+  const locale = lang === 'tr' ? 'tr' : 'en';
   try {
-    const r = await fetch(`/api/session/${sid}`);
+    const r = await fetch(`/static/locales/${locale}.json`);
+    if (r.ok) I18N = await r.json();
+  } catch(e) { /* fallback: I18N stays empty, use Turkish defaults */ }
+  if (!I18N.title) {
+    I18N = { title:'Fikir Olgunlaştırıcı', plan_title:'Planlama Netleştirici', intent_title:'Niyet Netleştirici',
+      loading:'Sorular yükleniyor…', submit:'Kararları Kaydet →', submitting:'Kaydediliyor…',
+      intent_submit:'Niyeti Kaydet →',
+      sections:'Bölümler', question:'Soru', answered:'✓ Yanıtlandı', ai_decide:'✦ AI karar verecek',
+      undecided:'⚠ Kararsız', custom_btn:'✏ Kendi cevabımı yaz', ai_btn:'✦ AI KARAR VERSİN',
+      undecided_btn:'⚠ KARAR VERİLEMEDİ', custom_placeholder:'Cevabınızı buraya yazın…', save:'Kaydet',
+      undecided_hint:"İsterseniz neden kararsız kaldığınızı yazın (zorunlu değil). Ajan bu soruyu IDE'de sizinle konuşacak.",
+      undecided_placeholder:'Tereddüdünüzü kısaca açıklayın… (isteğe bağlı)',
+      glossary_closed:'Sözlük (hazırlanıyor)', glossary_open:'Terimler Sözlüğü', glossary_terms:'terim',
+      glossary_preparing:'Terimler hazırlanıyor, ajan teknik terimleri ekliyor…', glossary_ready:'hazırlanıyor',
+      open_text_hint:'En fazla {max} karakter', success_title:'Kararlar Kaydedildi!',
+      success_text:'Tüm yanıtlarınız proje dizinine <strong>decisions.json</strong> olarak yazıldı.',
+      intent_success_title:'Niyet Yanıtları Kaydedildi!',
+      intent_success_text:'Yanıtlarınız ajana iletildi. Ajan şimdi bunlara göre ürün ve teknik karar sorularını hazırlayacak.',
+      success_close:'Bu pencereyi kapatabilirsiniz.', error_load:'Oturum yüklenemedi:' };
+  }
+  document.title = I18N.title;
+  initSession();
+}
+
+function T(key, replacements) {
+  let s = I18N[key] || key;
+  if (replacements) for (const [k,v] of Object.entries(replacements)) s = s.replace(`{${k}}`, v);
+  return s;
+}
+
+function initSession() {
+  // Apply locale to static strings
+  document.querySelector('.hdr-title').textContent = document.title;  // title already set
+  document.querySelector('.sb-head-lbl').textContent = T('sections');
+  document.getElementById('btn-submit').textContent = T('submit');
+  document.getElementById('loading').querySelector('.load-txt').textContent = T('loading');
+
+  (async () => {
+  try {
+    const r = await fetch(`/api/session/${sid}`, { headers: sessionToken ? { Authorization: 'Bearer ' + sessionToken } : {} });
     if (!r.ok) throw new Error(r.statusText);
     const d = await r.json();
     total = d.questions.length;
+    sessionToken = d.session_token || '';
     PAGE_MODE = d.mode || 'clarification';
     document.getElementById('loading').style.display  = 'none';
     document.getElementById('main').style.display     = 'flex';
     document.getElementById('hdr-idea').textContent   = d.idea;
     if (PAGE_MODE === 'plan') {
-      document.querySelector('.hdr-title').textContent = 'Planlama Netleştirici';
+      document.querySelector('.hdr-title').textContent = T('plan_title');
       document.querySelector('.hdr-mark').textContent  = '📋';
-      document.title = 'Planlama Netleştirici';
+      document.title = T('plan_title');
+    } else if (PAGE_MODE === 'intent') {
+      document.querySelector('.hdr-title').textContent = T('intent_title');
+      document.querySelector('.hdr-mark').textContent  = '◎';
+      document.getElementById('btn-submit').textContent = T('intent_submit');
+      document.title = T('intent_title');
     }
     buildUI(d);
     observeCategories(PAGE_MODE);
     updateProg();
+    rebuildGlossaryFromApi(sid);
   } catch(e) {
     document.getElementById('loading').innerHTML =
       `<span style="color:#B83232">❌ Oturum yüklenemedi: ${e.message}</span>`;
   }
-})();
+  })();
+}
 
 /* ── Build full UI ─────────────────────────────────────────── */
 function buildUI(data) {
   const main  = document.getElementById('main');
   const sbNav = document.getElementById('sb-nav');
 
-  if (PAGE_MODE === 'plan') {
+  buildGlossarySidebar(data, sbNav);
+  buildGlossaryCard(data);
+
+  if (PAGE_MODE === 'plan' || PAGE_MODE === 'intent') {
     buildPlanUI(data, main, sbNav);
   } else {
     buildClarificationUI(data, main, sbNav);
   }
+}
+
+/* ── Glossary Sidebar ─────────────────────────────────────── */
+function buildGlossarySidebar(data, sbNav) {
+  const old = document.getElementById('si-glossary');
+  if (old) old.remove();
+  const hasTerms = data.glossary && data.glossary.length > 0;
+  const isComplete = data.glossary_complete;
+  if (isComplete && !hasTerms) return;  // nothing to show
+  const dotStyle = hasTerms ? 'background:var(--teal)' : '';
+  const lbl = hasTerms ? T('glossary_open') : T('glossary_closed');
+  const si = el('div','sb-item'); si.id = 'si-glossary';
+  si.innerHTML = `
+    <div class="sb-icon" style="background:rgba(42,107,92,0.15)">📖</div>
+    <div class="sb-info">
+      <div class="sb-lbl">${lbl}</div>
+      <div class="sb-dots"><span class="sb-dot" style="${dotStyle}"></span></div>
+    </div>`;
+  sbNav.insertBefore(si, sbNav.firstChild);
+}
+
+/* ── Glossary Card ────────────────────────────────────────── */
+function buildGlossaryCard(data) {
+  const sec = document.getElementById('gloss-sec');
+  if (!sec) return;
+  const hasTerms = data.glossary && data.glossary.length > 0;
+  const isComplete = data.glossary_complete;
+
+  sec.innerHTML = '';
+
+  /* if complete and no terms: hide entirely */
+  if (isComplete && !hasTerms) {
+    sec.classList.remove('visible');
+    return;
+  }
+
+  sec.classList.add('visible');
+
+  const card = el('div','gloss-card'); card.id = 'gloss-card';
+
+  /* header (always visible) */
+  const hdr = el('div','gloss-hdr');
+  hdr.onclick = () => { card.classList.toggle('collapsed'); _glossCollapsed = card.classList.contains('collapsed'); };
+  const cnt = hasTerms ? `${data.glossary.length} ${T('glossary_terms')}` : (isComplete ? '—' : T('glossary_ready'));
+  hdr.innerHTML = `
+    <span class="gloss-hdr-icon">▼</span>
+    <span class="gloss-hdr-label">📖 ${hasTerms ? T('glossary_open') : T('glossary_closed')}</span>
+    <span class="gloss-hdr-cnt">${cnt}</span>`;
+  card.appendChild(hdr);
+
+  if (hasTerms) {
+    const body = el('div','gloss-body');
+    data.glossary.forEach(t => {
+      const item = el('div','gloss-item');
+      item.innerHTML = `<div class="gloss-term">${esc(t.term)}</div><div class="gloss-expl">${esc(t.explanation)}</div>`;
+      body.appendChild(item);
+    });
+    card.appendChild(body);
+  } else {
+    /* preparing state */
+    const prep = el('div','gloss-preparing');
+    prep.innerHTML = `<div class="gloss-spinner"></div><span class="gloss-preparing-txt">${T('glossary_preparing')}</span>`;
+    card.appendChild(prep);
+  }
+
+  /* default collapsed unless explicitly opened before */
+  if (!hasTerms || _glossCollapsed !== false) card.classList.add('collapsed');
+  sec.appendChild(card);
+}
+
+let _glossCollapsed = true;
+let _lastGlossaryCnt = 0;
+let _pollTimer = null;
+
+function rebuildGlossaryFromApi(sessionId) {
+  _lastGlossaryCnt = 0;
+  _pollTimer = setInterval(async () => {
+    try {
+      const headers = {};
+      if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken;
+      const r = await fetch(`/api/session/${sessionId}`, { headers });
+      if (!r.ok) { clearInterval(_pollTimer); _pollTimer = null; return; }
+      const d = await r.json();
+      const cnt = (d.glossary || []).length;
+      const complete = d.glossary_complete || d.status === 'completed';
+      if (cnt !== _lastGlossaryCnt || complete) {
+        _lastGlossaryCnt = cnt;
+        const sbNav = document.getElementById('sb-nav');
+        buildGlossarySidebar({ glossary: d.glossary, glossary_complete: complete }, sbNav);
+        buildGlossaryCard({ glossary: d.glossary, glossary_complete: complete });
+        if (complete) { clearInterval(_pollTimer); _pollTimer = null; }
+      }
+      if (d.status === 'completed') { clearInterval(_pollTimer); _pollTimer = null; }
+    } catch(e) {}
+  }, 2500);
 }
 
 function buildClarificationUI(data, main, sbNav) {
@@ -533,129 +748,248 @@ function buildPlanUI(data, main, sbNav) {
 /* ── Build Question Card ───────────────────────────────────── */
 function buildCard(q, num, m, mode) {
   mode = mode || PAGE_MODE;
+  const qtype = q.type || 'single_choice';
+  const isIntent = mode === 'intent';
   const card = el('div','q-card'); card.id = `c-${q.id}`;
 
   /* top row */
   const top = el('div','q-top');
-  const badgeHtml = (mode === 'plan' || !m.lbl)
+  const badgeHtml = (mode === 'plan' || mode === 'intent' || !m.lbl)
     ? ''
     : `<span class="q-badge" style="background:${m.clr}">${m.ico} ${m.lbl}</span>`;
   top.innerHTML = `
     ${badgeHtml}
-    <span class="q-num">Soru ${num}</span>
-    <span class="q-status st-answered">✓ Yanıtlandı</span>
-    <span class="q-status st-ai">✦ AI karar verecek</span>
-    <span class="q-status st-undecided">⚠ Kararsız</span>`;
+    <span class="q-num">${T('question')} ${num}</span>
+    <span class="q-status st-answered">${T('answered')}</span>
+    <span class="q-status st-ai">${T('ai_decide')}</span>
+    <span class="q-status st-undecided">${T('undecided')}</span>`;
   card.appendChild(top);
 
   /* question text */
   const qt = el('div','q-text'); qt.textContent = q.question;
   card.appendChild(qt);
 
-  /* options grid (always 4 options) */
-  const grid = el('div','opts'); grid.id = `g-${q.id}`;
   const optBtns = [];
-  (q.options||[]).forEach((opt,i) => {
-    const desc = (q.option_descriptions||[])[i]||'';
-    const btn = el('button','opt');
-    btn.innerHTML = `
-      <div class="opt-top">
-        <span class="opt-letter">${LETTERS[i]}</span>
-        <span class="opt-text">${esc(opt)}</span>
-      </div>
-      ${desc ? `<div class="opt-desc">${esc(desc)}</div>` : ''}`;
-    btn.onclick = () => {
-      if (btn.disabled) return;
-      optBtns.forEach(b => b.classList.remove('sel'));
-      btn.classList.add('sel');
-      aiBtn.classList.remove('on');
-      aiBtn.disabled = false;
-      customBox.classList.remove('open');
-      customBtn.classList.remove('on');
-      undecidedBox.classList.remove('open'); undBtn.classList.remove('on');
-      setAns(q.id, opt, 'opt');
-    };
-    optBtns.push(btn); grid.appendChild(btn);
-  });
-  card.appendChild(grid);
+  let grid, acts, customBox, aiBtn, undBtn, customBtn, ta, sav;
+  let undecidedBox, undTa, undSav;
+  let customValue = '';
 
-  /* actions */
-  const acts = el('div','q-acts');
-  const customBtn = el('button','act-btn act-custom'); customBtn.textContent = '✏ Kendi cevabımı yaz';
-  const aiBtn     = el('button','act-btn act-ai');     aiBtn.textContent     = '✦ AI KARAR VERSİN';
-  const undBtn    = el('button','act-btn act-undecided'); undBtn.textContent  = '⚠ KARAR VERİLEMEDİ';
-  acts.append(customBtn, aiBtn, undBtn);
-  card.appendChild(acts);
+  function selectedOptions() {
+    return optBtns
+      .filter(b => b.classList && b.classList.contains('sel'))
+      .map(b => b.querySelector('.opt-text')?.textContent || '')
+      .filter(Boolean);
+  }
+
+  function setChoiceAnswerFromState() {
+    const selected = selectedOptions();
+    const parts = customValue ? [...selected, customValue] : selected;
+    if (parts.length === 0) {
+      delete answers[q.id];
+      cardState(q.id, '');
+      updateProg();
+      return;
+    }
+    const value = (qtype === 'multi_choice' && selected.length > 0)
+      ? parts
+      : (parts.length === 1 ? parts[0] : parts);
+    answers[q.id] = {
+      answer: value,
+      ai_decides: false,
+      custom: Boolean(customValue),
+      undecided: false
+    };
+    cardState(q.id, 'answered');
+    updateProg();
+  }
+
+  /* ── Options grid ── */
+  if (qtype === 'single_choice' || qtype === 'multi_choice') {
+    grid = el('div','opts'); grid.id = `g-${q.id}`;
+    (q.options||[]).forEach((opt,i) => {
+      const desc = (q.option_descriptions||[])[i]||'';
+      const btn = el('button','opt');
+      btn.innerHTML = `
+        <div class="opt-top">
+          <span class="opt-letter">${LETTERS[i]}</span>
+          <span class="opt-text">${esc(opt)}</span>
+        </div>
+        ${desc ? `<div class="opt-desc">${esc(desc)}</div>` : ''}`;
+      btn.onclick = () => {
+        if (btn.disabled) return;
+        if (qtype === 'single_choice') {
+          optBtns.forEach(b => b.classList.remove('sel'));
+          btn.classList.add('sel');
+          resetActions();
+          setChoiceAnswerFromState();
+        } else {
+          btn.classList.toggle('sel');
+          resetActions();
+          setChoiceAnswerFromState();
+        }
+      };
+      optBtns.push(btn); grid.appendChild(btn);
+    });
+    card.appendChild(grid);
+  }
+
+  /* ── yes_no buttons ── */
+  if (qtype === 'yes_no') {
+    grid = el('div','opts'); grid.id = `g-${q.id}`;
+    const ynOpts = (q.options && q.options.length >= 2) ? q.options : ['Evet', 'Hayır'];
+    const ynDescs = q.option_descriptions || [];
+    ynOpts.forEach((opt,i) => {
+      const desc = ynDescs[i] || '';
+      const btn = el('button','opt');
+      btn.style.padding = '16px 13px';
+      btn.innerHTML = `
+        <div class="opt-top">
+          <span class="opt-letter">${i===0?'✓':'✗'}</span>
+          <span class="opt-text">${esc(opt)}</span>
+        </div>
+        ${desc ? `<div class="opt-desc">${esc(desc)}</div>` : ''}`;
+      btn.onclick = () => {
+        if (btn.disabled) return;
+        optBtns.forEach(b => b.classList.remove('sel'));
+        btn.classList.add('sel');
+        setAns(q.id, opt, 'opt');
+      };
+      optBtns.push(btn); grid.appendChild(btn);
+    });
+    card.appendChild(grid);
+  }
+
+  /* ── open_text textarea ── */
+  if (qtype === 'open_text') {
+    const maxLen = q.max_length || 500;
+    const ota = el('textarea','custom-ta');
+    ota.placeholder = T('custom_placeholder');
+    ota.rows = 4;
+    ota.maxLength = maxLen;
+    ota.style.display = 'block';
+    ota.oninput = () => {
+      const v = ota.value.trim();
+      if (v) setAns(q.id, v, 'custom');
+      else { delete answers[q.id]; cardState(q.id, ''); updateProg(); }
+    };
+    const olbl = el('div');
+    olbl.style.cssText = 'font-size:11px;color:var(--muted);margin-top:6px';
+    olbl.textContent = T('open_text_hint', { max: maxLen });
+    card.appendChild(ota);
+    card.appendChild(olbl);
+    optBtns.push(ota);
+    return card;  // no actions for open_text
+  }
+
+  /* ── Actions ── */
+  if (qtype !== 'yes_no') {
+    acts = el('div','q-acts');
+    customBtn = el('button','act-btn act-custom'); customBtn.textContent = T('custom_btn');
+    acts.append(customBtn);
+    if (!isIntent) {
+      aiBtn     = el('button','act-btn act-ai');     aiBtn.textContent     = T('ai_btn');
+      undBtn    = el('button','act-btn act-undecided'); undBtn.textContent  = T('undecided_btn');
+      acts.append(aiBtn, undBtn);
+    }
+    card.appendChild(acts);
+  }
 
   /* custom box */
-  const customBox = el('div','custom-box');
-  const ta  = el('textarea','custom-ta'); ta.placeholder = 'Cevabınızı buraya yazın…'; ta.rows = 3;
-  const sav = el('button','btn-save'); sav.textContent = 'Kaydet';
+  customBox = el('div','custom-box');
+  ta  = el('textarea','custom-ta'); ta.placeholder = T('custom_placeholder'); ta.rows = 3;
+  sav = el('button','btn-save'); sav.textContent = T('save');
   customBox.append(ta, sav); card.appendChild(customBox);
 
   sav.onclick = () => {
     const v = ta.value.trim(); if (!v) return;
-    optBtns.forEach(b => b.classList.remove('sel'));
-    aiBtn.classList.remove('on');
-    undecidedBox.classList.remove('open'); undBtn.classList.remove('on');
-    setAns(q.id, v, 'custom');
+    customValue = v;
+    if (aiBtn) aiBtn.classList.remove('on');
+    if (undBtn) undBtn.classList.remove('on');
+    if (undecidedBox) undecidedBox.classList.remove('open');
+    if (customBox) customBox.classList.remove('open');
+    if (customBtn) customBtn.classList.add('on');
+    setChoiceAnswerFromState();
   };
 
   /* undecided note box */
-  const undecidedBox = el('div','undecided-box');
+  undecidedBox = el('div','undecided-box');
   const undHint = el('p','undecided-hint');
-  undHint.textContent = 'İsterseniz neden kararsız kaldığınızı yazın (zorunlu değil). Ajan bu soruyu IDE\'de sizinle konuşacak.';
-  const undTa   = el('textarea','undecided-ta');
-  undTa.placeholder = 'Tereddüdünüzü kısaca açıklayın… (isteğe bağlı)';
-  const undSav  = el('button','btn-undecided-save'); undSav.textContent = 'Kaydet';
+  undHint.textContent = T('undecided_hint');
+  undTa   = el('textarea','undecided-ta');
+  undTa.placeholder = T('undecided_placeholder');
+  undSav  = el('button','btn-undecided-save'); undSav.textContent = T('save');
   undecidedBox.append(undHint, undTa, undSav);
   card.appendChild(undecidedBox);
 
+  /* shared helpers */
+  function resetActions() {
+    if (aiBtn) { aiBtn.classList.remove('on'); aiBtn.disabled = false; }
+    if (customBox) customBox.classList.remove('open');
+    if (customBtn) customBtn.classList.toggle('on', Boolean(customValue));
+    if (undecidedBox) undecidedBox.classList.remove('open');
+    if (undBtn) undBtn.classList.remove('on');
+  }
+
   /* action bindings */
-  customBtn.onclick = () => {
-    if (customBtn.disabled) return;
-    const o = customBox.classList.contains('open');
-    customBox.classList.toggle('open',!o); customBtn.classList.toggle('on',!o);
-    if (!o) ta.focus();
-  };
+  if (customBtn) {
+    customBtn.onclick = () => {
+      if (customBtn.disabled) return;
+      const o = customBox.classList.contains('open');
+      customBox.classList.toggle('open',!o); customBtn.classList.toggle('on',!o);
+      if (o && customValue) customBtn.classList.add('on');
+      if (!o) ta.focus();
+    };
+  }
 
-  aiBtn.onclick = () => {
-    if (aiBtn.disabled) return;
-    if (aiBtn.classList.contains('on')) {
-      aiBtn.classList.remove('on');
-      optBtns.forEach(b=>{b.disabled=false;});
-      customBtn.disabled = undBtn.disabled = false;
-      delete answers[q.id]; cardState(q.id,''); updateProg();
-    } else {
-      optBtns.forEach(b=>{b.classList.remove('sel');b.disabled=true;});
-      customBtn.disabled = undBtn.disabled = true;
-      customBox.classList.remove('open'); customBtn.classList.remove('on');
-      undecidedBox.classList.remove('open'); undBtn.classList.remove('on');
-      aiBtn.classList.add('on');
-      setAns(q.id, null, 'ai');
-    }
-  };
+  if (aiBtn) {
+    aiBtn.onclick = () => {
+      if (aiBtn.disabled) return;
+      if (aiBtn.classList.contains('on')) {
+        aiBtn.classList.remove('on');
+        optBtns.forEach(b=>{if(b.classList)b.disabled=false;});
+        if (customBtn) customBtn.disabled = false;
+        if (undBtn) undBtn.disabled = false;
+        delete answers[q.id]; cardState(q.id,''); updateProg();
+      } else {
+        optBtns.forEach(b=>{if(b.classList){b.classList.remove('sel');b.disabled=true;}});
+        customValue = '';
+        if (ta) ta.value = '';
+        if (customBtn) customBtn.disabled = true;
+        if (undBtn) undBtn.disabled = true;
+        if (customBox) { customBox.classList.remove('open'); if(customBtn)customBtn.classList.remove('on'); }
+        if (undecidedBox) { undecidedBox.classList.remove('open'); if(undBtn)undBtn.classList.remove('on'); }
+        if (aiBtn) aiBtn.classList.add('on');
+        setAns(q.id, null, 'ai');
+      }
+    };
+  }
 
-  undSav.onclick = () => {
-    const note = undTa.value.trim();
-    optBtns.forEach(b=>{b.classList.remove('sel');});
-    aiBtn.classList.remove('on');
-    customBox.classList.remove('open'); customBtn.classList.remove('on');
-    answers[q.id] = { answer: null, ai_decides: false, custom: false, undecided: true, undecided_note: note };
-    cardState(q.id, 'undecided');
-    updateProg();
-  };
+  if (undSav) {
+    undSav.onclick = () => {
+      const note = undTa.value.trim();
+      optBtns.forEach(b=>{if(b.classList)b.classList.remove('sel');});
+      customValue = '';
+      if (ta) ta.value = '';
+      if (aiBtn) aiBtn.classList.remove('on');
+      if (customBox) { customBox.classList.remove('open'); if(customBtn)customBtn.classList.remove('on'); }
+      answers[q.id] = { answer: null, ai_decides: false, custom: false, undecided: true, undecided_note: note };
+      cardState(q.id, 'undecided');
+      updateProg();
+    };
+  }
 
-  undBtn.onclick = () => {
-    if (undBtn.disabled) return;
-    const o = undecidedBox.classList.contains('open');
-    undecidedBox.classList.toggle('open', !o);
-    undBtn.classList.toggle('on', !o);
-    if (!o) {
-      customBox.classList.remove('open'); customBtn.classList.remove('on');
-      undTa.focus();
-    }
-  };
+  if (undBtn) {
+    undBtn.onclick = () => {
+      if (undBtn.disabled) return;
+      const o = undecidedBox.classList.contains('open');
+      undecidedBox.classList.toggle('open', !o);
+      undBtn.classList.toggle('on', !o);
+      if (!o) {
+        if (customBox) { customBox.classList.remove('open'); if(customBtn)customBtn.classList.remove('on'); }
+        undTa.focus();
+      }
+    };
+  }
 
   return card;
 }
@@ -693,7 +1027,7 @@ function observeCategories(mode) {
   const obs = new IntersectionObserver(entries => {
     entries.forEach(e => {
       let siId;
-      if (mode === 'plan') {
+      if (mode === 'plan' || mode === 'intent') {
         // cards have id `c-{qid}`, sidebar items have id `si-{qid}`
         siId = `si-${e.target.id.replace('c-','')}`;
       } else {
@@ -704,7 +1038,7 @@ function observeCategories(mode) {
     });
   }, { rootMargin:'-8% 0px -78% 0px' });
 
-  if (mode === 'plan') {
+  if (mode === 'plan' || mode === 'intent') {
     document.querySelectorAll('.q-card').forEach(c => obs.observe(c));
   } else {
     document.querySelectorAll('.cat-sec').forEach(s => obs.observe(s));
@@ -716,10 +1050,12 @@ async function submitAnswers() {
   const hb = document.getElementById('btn-submit');
   const sb = document.getElementById('btn-submit-sb');
   hb.disabled = sb.disabled = true;
-  hb.textContent = 'Kaydediliyor…';
+  hb.textContent = T('submitting');
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (sessionToken) headers['Authorization'] = 'Bearer ' + sessionToken;
     const r = await fetch(`/api/session/${sid}/answers`,{
-      method:'POST', headers:{'Content-Type':'application/json'},
+      method:'POST', headers: headers,
       body: JSON.stringify({answers})
     });
     if (!r.ok) throw new Error((await r.json()).error||'Sunucu hatası');
@@ -728,9 +1064,14 @@ async function submitAnswers() {
     document.getElementById('main').style.display    = 'none';
     document.body.style.paddingRight = '0';
     document.getElementById('success').classList.add('visible');
+    document.getElementById('success').querySelector('h2').textContent =
+      PAGE_MODE === 'intent' ? T('intent_success_title') : T('success_title');
+    document.getElementById('success').querySelector('p').innerHTML =
+      PAGE_MODE === 'intent' ? T('intent_success_text') : T('success_text');
+    document.getElementById('success').querySelector('.s-small').textContent = T('success_close');
   } catch(e) {
     alert('Hata: '+e.message);
-    hb.disabled = false; hb.textContent = 'Kararları Kaydet →';
+    hb.disabled = false; hb.textContent = T('submit');
     updateProg();
   }
 }
@@ -743,6 +1084,8 @@ function el(tag, cls='') {
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+initLocale();
 </script>
 </body>
 </html>

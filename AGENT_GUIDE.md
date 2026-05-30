@@ -4,33 +4,98 @@
 
 | Situation | Tool | Questions | Output |
 |---|---|---|---|
-| **Yeni proje fikri** — teknoloji, mimari, DB, güvenlik kararları | `start_clarification` | 40-50, kategorili | `decisions.json` |
+| **Yeni proje fikri, aşama 1** — niyet, hedef, kavramsal mantık | `start_intent_clarification` | 7 sabit seçenekli soru | Ham cevaplar |
+| **Yeni proje fikri, aşama 2** — ürün ve gerekiyorsa teknik kararlar | `start_clarification` | 40-50, kategorili | `decisions.json` |
 | **Mevcut proje** — planlama öncesi belirli kararları netleştirmek | `start_plan_clarification` | 5-15, kategorisiz | `plan_notes.json` |
 
 ## Workflow
 
 ```
-1. Generate questions  →  2. start_clarification        →  3. poll get_answers  →  4. write_decisions
-                              veya
-                          start_plan_clarification
+1. start_intent_clarification  →  2. kullanıcı cevaplar  →  3. get_answers (TEK çağrı)
+          ↓
+   ajan kendi içinde kısa intent brief çıkarır (dosyaya yazmaz)
+          ↓
+4. start_clarification         →  5. add_glossary (1-N kez) →  6. get_answers → 7. write_decisions
+
+Mevcut proje planlama için: start_plan_clarification → get_answers → write_decisions
 ```
+
+**Zorunlu yeni proje akışı:** Ajan önce `start_intent_clarification` çağırır. Kullanıcının niyeti,
+hedefi, amacı ve ürünün kavramsal çalışma mantığı anlaşılmadan ürün/teknik soru üretilmez.
+Intent aşamasında kullanıcı hazır seçeneklerden seçim yapar ve gerekirse kendi cevabını seçime ekler.
+Intent cevapları geldikten sonra ajan kendi içinde kısa bir intent brief çıkarır; bu brief dosyaya yazılmaz.
+
+**İkinci aşama:** Ajan intent brief'e dayanarak `start_clarification` sorularını üretir — sayfa **hemen** açılır.
+Kullanıcı soruları okurken ajan `add_glossary` ile terimleri bir veya birden fazla çağrıda gönderir.
+Tarayıcı 2.5 saniyede bir poll eder, sözlük kartını günceller. Ajan boş `add_glossary(session_id, terms=[])`
+çağrısıyla terimlerin tamamlandığını bildirince polling durur.
+Sözlük kartı **kapalı** gelir — kullanıcı isterse tıklayıp açar.
+
+**ÖNEMLİ:** Ajan `get_answers`'ı loop'ta poll etmez. Kullanıcının "cevapladım" demesini bekler,
+sonra **tek bir** `get_answers` çağrısı yapar.
+
+**Çoklu seçim:** Sorularda birden fazla şık seçilebilir. Kullanıcının seçtiği cevaplar çelişkiliyse,
+ajan IDE'deki konuşmada bunu kesinleştirir — yeni MCP oturumu açmaya gerek yoktur.
 
 ---
 
 ## Soru Yazma İlkeleri
 
-Her soruyu üretmeden önce bu 6 kuralı kontrol et:
+Her ikinci aşama sorusunu üretmeden önce bu kuralları kontrol et:
 
-1. **Her şık bir karar noktası** — "seçilirse ne olur" somut olmalı; belirsiz genel ifade olmamalı.
-2. **Şık açıklaması = trade-off** — teknik terimi açıkla + avantaj/dezavantajı belirt.
-3. **Şıklar birbirini dışlasın** — aynı şeyi farklı kelimeyle söyleyen iki şık koyma.
-4. **Bir şık "minimal/MVP"** — her soruda en az bir "basit tut" seçeneği olsun.
-5. **Kullanıcı gözünden yaz** — soru metninde geliştirici jargonu olmasın; açıklamada olabilir.
-6. **Soru tek boyutlu** — bir soruda iki farklı konu sorma; gerekirse iki ayrı soruya böl.
+1. **Önce niyet** — intent cevapları anlaşılmadan teknik karar sorma.
+2. **Tek karar ekseni** — her soru için zihninde bir `decision_axis` belirle.
+3. **Tekrar yok** — aynı `decision_axis` ikinci kez sorulamaz; aynı kararı farklı kelimelerle tekrar sorma.
+4. **Seçim tipini açık yaz** — choice sorularda `type` alanını mutlaka `single_choice` veya `multi_choice` olarak yaz.
+5. **Doğru seçim tipi** — tek bir ana karar gerekiyorsa `single_choice`, birden fazla cevap aynı anda geçerliyse `multi_choice`.
+6. **Her şık bir karar noktası** — "seçilirse ne olur" somut olmalı; belirsiz genel ifade olmamalı.
+7. **Şık açıklaması = trade-off** — teknik terimi açıkla + avantaj/dezavantajı belirt.
+8. **Şıklar birbirini dışlasın** — aynı şeyi farklı kelimeyle söyleyen iki şık koyma.
+9. **Bir şık "minimal/MVP"** — her soruda en az bir "basit tut" seçeneği olsun.
+10. **Kullanıcı gözünden yaz** — soru metninde geliştirici jargonu olmasın; açıklamada olabilir.
+11. **Soru tek boyutlu** — bir soruda iki farklı konu sorma; gerekirse iki ayrı soruya böl.
+
+MCP runtime benzerlik analizi veya LLM tabanlı tekrar denetimi yapmaz. Tekrarı engellemek ajanın
+`decision_axis` defterini doğru tutma sorumluluğudur.
 
 ---
 
-## Step 1 — Generate questions
+## Step 1 — Clarify intent first
+
+Yeni proje fikrinde doğrudan teknik veya kapsam sorularına geçme. Önce sabit seçenekli intent oturumunu aç:
+
+```python
+result = start_intent_clarification(
+    idea="Ekipler için görev takip uygulaması — proje yönetimi ve deadline takibi",
+    project_path="C:/path/to/my-project"
+)
+```
+
+Kullanıcı "cevapladım / bitti" dedikten sonra:
+
+```python
+intent_result = get_answers(session_id=result["session_id"])
+```
+
+Bu ham cevaplardan kendi içinde kısa bir intent brief çıkar:
+
+```text
+- Amaç:
+- Hedef kullanıcı:
+- Problem bağlamı:
+- Kavramsal çalışma mantığı:
+- Başarı ölçütü:
+- Kapsam dışı:
+- Açık varsayım:
+```
+
+Bu brief'i dosyaya yazma. İkinci aşama sorularını sadece bu brief'e göre üret.
+Intent cevaplarında `answer` string veya array olabilir. Kullanıcı custom cevap eklediyse bu cevap seçili
+opsiyonlarla aynı `answer` dizisine eklenir ve `custom: true` gelir.
+
+---
+
+## Step 2 — Generate decision questions
 
 ### Question schema
 
@@ -38,6 +103,8 @@ Her soruyu üretmeden önce bu 6 kuralı kontrol et:
 {
     "id":                  "q_vision_01",    # unique, snake_case
     "category":            "project_vision", # see categories below
+    "type":                "single_choice",  # explicit: single_choice | multi_choice
+    "decision_axis":       "target_user_segment",
     "question":            "Hedef kitle kim?",
     "options": [
         "Bireysel kullanıcılar",
@@ -56,7 +123,33 @@ Her soruyu üretmeden önce bu 6 kuralı kontrol et:
 
 - `options` — tam olarak **4** şık.
 - `option_descriptions` — tam olarak **4** açıklama (şıkla birebir eşleşir).
+- `decision_axis` — ajanın kendi karar defterindeki benzersiz karar ekseni; aynı eksen tekrar sorulmaz.
+- `type` — choice sorularda açıkça yazılır; default'a güvenme.
 - Her kategori için en az **5 soru** üret.
+
+### Glossary (terim sözlüğü)
+
+Teknik kategorilerde soru üretirken jargon terimleri için bir **glossary** listesi oluştur.
+Terimler `start_*` ile birlikte veya — **tercihen** — sayfa açıldıktan sonra `add_glossary` ile
+bir veya birden fazla adımda gönderilir. Tarayıcı 2.5 saniyede bir poll edip sözlük kartını
+günceller; boş `add_glossary(session_id, terms=[])` çağrısıyla terimler tamamlanınca polling durur.
+
+Sözlük kartı sayfa yüklendiğinde **kapalı (collapsed)** gelir — kullanıcı tıklayıp açar.
+Terim yokken kartta spinner ve "Terimler hazırlanıyor…" yazar.
+
+```python
+glossary = [
+    {"term": "ORM", "explanation": "Object-Relational Mapping — Veritabanı tablolarını kod nesnelerine dönüştüren araç. SQL yazmadan veri okuma/yazma yapmayı sağlar."},
+    {"term": "JWT", "explanation": "JSON Web Token — Kimlik doğrulama için kullanılan şifreli token. Kullanıcı giriş yaptıktan sonra sunucu bu token'ı verir, tarayıcı her istekte bunu gönderir."},
+    {"term": "SSR", "explanation": "Server-Side Rendering — Sayfanın HTML'inin sunucuda oluşturulup tarayıcıya gönderilmesi. İlk yükleme hızlıdır, SEO dostudur."},
+]
+```
+
+Glossary kuralları:
+- Her terim için **tek cümlelik** açıklama yeterlidir; 2-3 cümleyi geçme.
+- Açıklama teknik dilde olabilir ama **ilk cümle mutlaka anlaşılır Türkçe** olmalı.
+- Sadece sorularda geçen terimleri ekle — kullanılmayan terim ekleme.
+- Terim sayısı soru sayısının %10-20'si civarında olmalı (40 soruda 4-8 terim gibi).
 
 ---
 
@@ -174,9 +267,10 @@ business_logic — kullanıcı modeli, faturalandırma, bildirim, veri export, f
 
 ---
 
-## Step 2 — Call `start_clarification`
+## Step 3 — Call `start_clarification` (then `add_glossary`)
 
 ```python
+# Intent brief hazırlandıktan sonra: karar sorularını gönder, sayfa hemen açılsın
 result = start_clarification(
     idea="Ekipler için görev takip uygulaması — proje yönetimi ve deadline takibi",
     project_path="C:/path/to/my-project",
@@ -184,6 +278,8 @@ result = start_clarification(
         {
             "id": "q_vision_01",
             "category": "project_vision",
+            "type": "single_choice",
+            "decision_axis": "primary_problem_type",
             "question": "Bu proje hangi temel sorunu çözüyor?",
             "options": ["Bireysel verimlilik","Ekip koordinasyonu","Müşteri hizmeti","Süreç otomasyonu"],
             "option_descriptions": [
@@ -197,23 +293,38 @@ result = start_clarification(
     ]
 )
 # → { session_id, url, question_count, message }
-# Also creates: project_path/.clarifier/session.json (crash recovery)
+# Browser opens immediately! User starts reading questions.
+session_id = result["session_id"]
+
+# SONRA: kullanıcı soruları okurken, ajan sözlük terimlerini gönderir
+add_glossary(session_id=session_id, terms=[
+    {"term": "CRM", "explanation": "Müşteri İlişkileri Yönetimi — müşteri verilerini ve etkileşimleri tek yerde toplar."},
+    {"term": "MVP", "explanation": "Minimum Viable Product — ürünün sadece temel özelliklerle çıkan ilk sürümü."},
+    {"term": "CDN", "explanation": "Content Delivery Network — statik dosyaları dünyanın farklı noktalarından hızlı sunan ağ."},
+])
+# → { success: true, total_terms: 3, added: 3 }
+
+# Daha fazla terim eklenebilir (teknik katman soruları üretildikçe):
+add_glossary(session_id=session_id, terms=[
+    {"term": "ORM", "explanation": "Object-Relational Mapping — veritabanı tablolarını kod nesnelerine dönüştüren araç."},
+    {"term": "SSR", "explanation": "Server-Side Rendering — HTML'in sunucuda oluşturulup tarayıcıya gönderilmesi."},
+])
+# → { success: true, total_terms: 5, added: 2 }
+# Browser glossary card updates live — no page reload needed!
 ```
 
 Tell the user: "Tarayıcınızda sorular açıldı. Lütfen yanıtlayın, ben burada bekliyorum."
 
 ---
 
-## Step 3 — Poll `get_answers`
+## Step 4 — Wait for user, then `get_answers` ONCE
+
+Ajan `get_answers`'ı **loop'ta poll etmez.** Kullanıcının tarayıcıda "Kararları Kaydet" butonuna
+basmasını bekler. Kullanıcı IDE'de "cevapladım", "bitti", "tamam" gibi bir sinyal verdiğinde
+ajan **tek bir** `get_answers` çağrısı yapar:
 
 ```python
-while True:
-    result = get_answers(session_id=session_id)
-
-    if result["status"] == "completed":
-        break
-
-    time.sleep(5)
+result = get_answers(session_id=session_id)
 ```
 
 When `status == "completed"`, the response includes:
@@ -223,9 +334,12 @@ When `status == "completed"`, the response includes:
 
 **For `undecided_questions`**: discuss each one with the user HERE in the IDE — do NOT open a new browser session. After the conversation, include your conclusions in `ai_decisions` when calling `write_decisions`.
 
+**Multi-select notes:** `answer` field may be a string or an array of strings (if user picked multiple options).
+If the selected options appear contradictory, discuss with the user in the IDE to resolve — no new MCP session needed.
+
 ---
 
-## Step 4 — Fill AI decisions, then `write_decisions`
+## Step 5 — Fill AI decisions, then `write_decisions`
 
 ```python
 # result["ai_decision_needed"] → list of question_ids where user clicked "AI KARAR VERSİN"
@@ -246,32 +360,21 @@ write_decisions(
 
 | Tool | When |
 |---|---|
-| `start_clarification(idea, project_path, questions)` | Yeni proje fikri → decisions.json |
+| `start_intent_clarification(idea, project_path)` | Yeni proje fikri için zorunlu ilk niyet oturumu |
+| `start_clarification(idea, project_path, questions)` | Intent cevaplarından sonra yeni proje kararları → decisions.json |
 | `start_plan_clarification(context, project_path, questions)` | Mevcut proje planlama öncesi → plan_notes.json |
-| `get_answers(session_id)` | Her iki mod için — her 5 saniyede poll et |
-| `write_decisions(session_id, ai_decisions)` | Status `completed` olduktan sonra |
+| `add_glossary(session_id, terms)` | Herhangi bir zamanda, 1-N kez — tarayıcı canlı güncellenir |
+| `get_answers(session_id)` | Kullanıcı "cevapladım" dedikten sonra TEK çağrı |
 
----
-
-## `start_plan_clarification` — Mevcut Proje Planlama Netleştirici
-
-### Ne zaman kullanılır?
-
-Mevcut bir projede kodu araştırdıktan sonra, implementasyon planı yazmadan önce kullanıcıdan
-belirli kararları almak gerektiğinde. Örnek senaryolar:
-- "Bu servisi refactor mi edelim, yoksa yeni bir tane mi yazalım?"
-- "Migration breaking change olabilir — kullanıcı bunu kabul ediyor mu?"
-- "Hangi endpoint'e dokunacağız?"
-
-### Soru şeması (esnek)
+### Waiting flow — aynıdır
 
 ```python
-{
-    "id":                  "p_01",       # required
-    "question":            str,          # required
-    "options":             list[str],    # exactly 4 option strings (A, B, C, D)
-    "option_descriptions": list[str],    # exactly 4 plain-language descriptions
-}
+# Kullanıcının "cevapladım / bitti" demesini BEKLE
+# Sonra tek kez:
+result = get_answers(session_id=result["session_id"])
+
+write_decisions(session_id=result["session_id"], ai_decisions={...})
+# → plan_notes.json oluşur
 ```
 
 - `category` alanı gerekmez.
@@ -339,19 +442,24 @@ result = start_plan_clarification(
                 "Test yok — şimdilik çalışması yeterli."
             ]
         },
+    ],
+    glossary=[
+        {"term": "OAuth", "explanation": "Open Authorization — Başka bir servis (Google, GitHub) üzerinden kullanıcı girişi yapma standardı. Şifre paylaşmadan yetkilendirme sağlar."},
+        {"term": "JWT", "explanation": "JSON Web Token — Kimlik doğrulama için kullanılan şifreli token. Kullanıcı giriş yaptıktan sonra sunucu bu token'ı verir."},
+        {"term": "POC", "explanation": "Proof of Concept — Bir fikrin çalışabilirliğini test etmek için yazılan küçük, deneysel kod."},
+        {"term": "OIDC", "explanation": "OpenID Connect — OAuth 2.0 üzerine kurulu kimlik katmanı. Kullanıcının kim olduğunu doğrulayan standart."},
+        {"term": "E2E", "explanation": "End-to-End test — Uygulamayı baştan sona, gerçek kullanıcı gibi test eden otomatik test türü."},
     ]
 )
 # Çıktı: project_path/plan_notes.json (düz liste, kategorisiz)
 ```
 
-### Polling loop — aynıdır
+### Waiting flow — aynıdır
 
 ```python
-while True:
-    result = get_answers(session_id=result["session_id"])
-    if result["status"] == "completed":
-        break
-    time.sleep(5)
+# Kullanıcının "cevapladım / bitti" demesini BEKLE
+# Sonra tek kez:
+result = get_answers(session_id=result["session_id"])
 
 write_decisions(session_id=result["session_id"], ai_decisions={...})
 # → plan_notes.json oluşur
