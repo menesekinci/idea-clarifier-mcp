@@ -1,0 +1,590 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Idea Clarifier MCP</title>
+  <meta name="description" content="Intent-first MCP clarification sessions for turning vague project ideas into structured decisions before planning.">
+  <meta property="og:title" content="Idea Clarifier MCP">
+  <meta property="og:description" content="Turn vague project ideas into structured decisions before planning.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/idea-clarifier-overview.png">
+  <style>
+    :root {
+      --bg: #f7f3ee;
+      --ink: #15110d;
+      --muted: #62584e;
+      --line: #ded4c9;
+      --accent: #0f8f87;
+      --accent-dark: #0b645f;
+      --panel: #fffaf4;
+      --code: #211a14;
+      --code-ink: #f8efe3;
+      --shadow: 0 24px 70px rgba(42, 31, 20, 0.16);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .hero {
+      min-height: 94svh;
+      padding: 28px clamp(18px, 4vw, 64px) 54px;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 54px;
+      background:
+        linear-gradient(90deg, rgba(247, 243, 238, 0.98), rgba(247, 243, 238, 0.82) 46%, rgba(247, 243, 238, 0.2)),
+        radial-gradient(circle at 88% 10%, rgba(15, 143, 135, 0.16), transparent 32%),
+        var(--bg);
+      overflow: hidden;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      font-size: 14px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 7px;
+      display: grid;
+      place-items: center;
+      background: var(--accent);
+      color: white;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 22px;
+      color: var(--muted);
+    }
+
+    .nav-links a:hover {
+      color: var(--ink);
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.82fr) minmax(360px, 1.18fr);
+      gap: clamp(28px, 5vw, 78px);
+      align-items: center;
+      max-width: 1320px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .hero-copy {
+      max-width: 590px;
+      animation: rise 700ms ease both;
+    }
+
+    .eyebrow {
+      margin: 0 0 18px;
+      color: var(--accent-dark);
+      font-size: 13px;
+      font-weight: 760;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(54px, 8.2vw, 116px);
+      line-height: 0.92;
+      letter-spacing: 0;
+      max-width: 8.5ch;
+    }
+
+    .hero-copy p {
+      margin: 28px 0 0;
+      max-width: 560px;
+      color: var(--muted);
+      font-size: clamp(18px, 2.2vw, 23px);
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 34px;
+    }
+
+    .btn {
+      min-height: 46px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 7px;
+      padding: 12px 18px;
+      font-weight: 760;
+      border: 1px solid var(--line);
+      transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn.primary {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn.secondary {
+      background: rgba(255, 250, 244, 0.68);
+    }
+
+    .hero-media {
+      position: relative;
+      animation: floatIn 820ms 90ms ease both;
+    }
+
+    .hero-media img {
+      width: min(100%, 860px);
+      display: block;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(34, 26, 18, 0.12);
+    }
+
+    main {
+      background: #fffdf9;
+    }
+
+    section {
+      padding: 86px clamp(20px, 5vw, 72px);
+    }
+
+    .wrap {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .support {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .support h2,
+    .workflow h2,
+    .tools h2,
+    .install h2 {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 54px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .point {
+      padding-top: 20px;
+      border-top: 2px solid var(--accent);
+    }
+
+    .point h3,
+    .tool h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .point p,
+    .tool p,
+    .workflow p,
+    .install p {
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    .workflow-head,
+    .tools-head,
+    .install-grid {
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr;
+      gap: clamp(24px, 5vw, 70px);
+      align-items: start;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      margin-top: 46px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .step {
+      min-height: 156px;
+      padding: 24px 22px;
+      border-right: 1px solid var(--line);
+      transition: background 180ms ease;
+    }
+
+    .step:last-child {
+      border-right: none;
+    }
+
+    .step:hover {
+      background: #f8f1e9;
+    }
+
+    .step span {
+      color: var(--accent-dark);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .step strong {
+      display: block;
+      margin-top: 22px;
+      font-size: 19px;
+      line-height: 1.2;
+    }
+
+    .tools {
+      background: var(--panel);
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tool-list {
+      display: grid;
+      gap: 18px;
+    }
+
+    .tool {
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      gap: 24px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    .command {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 14px;
+      padding: 15px 16px;
+      border-radius: 7px;
+      background: var(--code);
+      color: var(--code-ink);
+      overflow: hidden;
+    }
+
+    .copy {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--code-ink);
+      padding: 7px 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .copy:hover {
+      border-color: rgba(255, 255, 255, 0.48);
+    }
+
+    footer {
+      padding: 26px clamp(20px, 5vw, 72px);
+      color: var(--muted);
+      font-size: 14px;
+      border-top: 1px solid var(--line);
+      background: #fffdf9;
+    }
+
+    .footer-inner {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(18px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes floatIn {
+      from { opacity: 0; transform: translateY(22px) scale(0.985); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    @media (max-width: 900px) {
+      .hero {
+        min-height: auto;
+        padding-bottom: 42px;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .hero-grid,
+      .workflow-head,
+      .tools-head,
+      .install-grid {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        max-width: 9ch;
+      }
+
+      .support,
+      .steps {
+        grid-template-columns: 1fr;
+      }
+
+      .step {
+        border-right: none;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .step:last-child {
+        border-bottom: none;
+      }
+
+      .tool {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .hero {
+        padding-top: 20px;
+        padding-bottom: 24px;
+        gap: 32px;
+      }
+
+      .hero-grid {
+        gap: 26px;
+      }
+
+      h1 {
+        font-size: 50px;
+      }
+
+      .hero-copy p {
+        margin-top: 20px;
+      }
+
+      .actions {
+        margin-top: 24px;
+      }
+
+      .hero-media img {
+        max-height: 190px;
+        object-fit: cover;
+        object-position: top left;
+      }
+
+      .actions,
+      .command {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .btn,
+      .copy {
+        width: 100%;
+      }
+
+      section {
+        padding-top: 62px;
+        padding-bottom: 62px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <nav class="nav" aria-label="Primary navigation">
+      <a class="brand" href="#top" aria-label="Idea Clarifier MCP home">
+        <span class="mark">I</span>
+        <span>Idea Clarifier MCP</span>
+      </a>
+      <div class="nav-links">
+        <a href="#workflow">Workflow</a>
+        <a href="#tools">Tools</a>
+        <a href="#install">Install</a>
+      </div>
+    </nav>
+
+    <div class="hero-grid" id="top">
+      <div class="hero-copy">
+        <p class="eyebrow">Intent-first MCP clarification</p>
+        <h1>Idea Clarifier MCP</h1>
+        <p>Turn vague project ideas into structured decisions before planning.</p>
+        <div class="actions">
+          <a class="btn primary" href="https://github.com/menesekinci/idea-clarifier-mcp">View on GitHub</a>
+          <a class="btn secondary" href="#install">Install</a>
+        </div>
+      </div>
+      <div class="hero-media" aria-label="Idea Clarifier MCP workflow overview">
+        <img src="assets/idea-clarifier-overview.png" alt="Diagram showing Idea Clarifier MCP transforming an idea into questions, user choices, and decision outputs.">
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <div class="wrap support">
+        <div class="point">
+          <h3>Intent first</h3>
+          <p>Start with a fixed intent session so agents understand the goal before technical choices.</p>
+        </div>
+        <div class="point">
+          <h3>Browser Q&A</h3>
+          <p>Open a local clarification UI where users select options, add custom answers, and submit once.</p>
+        </div>
+        <div class="point">
+          <h3>Structured outputs</h3>
+          <p>Write decisions and planning notes as JSON that can feed scoping, architecture, and implementation.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="workflow" id="workflow">
+      <div class="wrap">
+        <div class="workflow-head">
+          <h2>From rough idea to usable decisions.</h2>
+          <p>Idea Clarifier MCP gives agents a simple contract: clarify intent, ask decision-focused questions, review unresolved items, then write clean output files.</p>
+        </div>
+        <div class="steps" aria-label="Clarification workflow">
+          <div class="step">
+            <span>01</span>
+            <strong>Intent questions</strong>
+          </div>
+          <div class="step">
+            <span>02</span>
+            <strong>Decision questions</strong>
+          </div>
+          <div class="step">
+            <span>03</span>
+            <strong>Answer review</strong>
+          </div>
+          <div class="step">
+            <span>04</span>
+            <strong><code>decisions.json</code></strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="tools" id="tools">
+      <div class="wrap tools-head">
+        <h2>Small tool surface, strict flow.</h2>
+        <div class="tool-list">
+          <div class="tool">
+            <h3><code>start_intent_clarification</code></h3>
+            <p>Launch the fixed first-stage intent session for new project ideas.</p>
+          </div>
+          <div class="tool">
+            <h3><code>start_clarification</code></h3>
+            <p>Open the second-stage product and technical decision session.</p>
+          </div>
+          <div class="tool">
+            <h3><code>get_answers</code></h3>
+            <p>Read submitted browser answers after the user says they are done.</p>
+          </div>
+          <div class="tool">
+            <h3><code>write_decisions</code></h3>
+            <p>Finalize the session into <code>decisions.json</code> or <code>plan_notes.json</code>.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="install" id="install">
+      <div class="wrap install-grid">
+        <div>
+          <h2>Install and run.</h2>
+          <p>Use the locked Python environment, then start the stdio MCP server from the repository root.</p>
+        </div>
+        <div>
+          <div class="command">
+            <code>uv sync</code>
+            <button class="copy" type="button" data-copy="uv sync">Copy</button>
+          </div>
+          <div class="command">
+            <code>uv run idea-clarifier</code>
+            <button class="copy" type="button" data-copy="uv run idea-clarifier">Copy</button>
+          </div>
+          <div class="actions">
+            <a class="btn primary" href="https://github.com/menesekinci/idea-clarifier-mcp">Open repository</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+      <span>Idea Clarifier MCP</span>
+      <a href="https://github.com/menesekinci/idea-clarifier-mcp">github.com/menesekinci/idea-clarifier-mcp</a>
+    </div>
+  </footer>
+
+  <script>
+    document.querySelectorAll("[data-copy]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const value = button.getAttribute("data-copy");
+        try {
+          await navigator.clipboard.writeText(value);
+          const original = button.textContent;
+          button.textContent = "Copied";
+          window.setTimeout(() => { button.textContent = original; }, 1400);
+        } catch {
+          button.textContent = "Select";
+        }
+      });
+    });
+  </script>
+</body>
+</html>
