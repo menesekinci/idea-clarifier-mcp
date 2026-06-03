@@ -156,19 +156,19 @@ AGENT_GUIDE.md                     Detailed question-writing guidance
 - Session data is held in memory while the server is running; the temporary session file is for recovery context, not a standalone resume API.
 - The bundled browser interface is currently Turkish, while this README and the generated project overview asset are English.
 
-## Hermes Agent ile Kullanım
+## Using with Hermes Agent
 
-Idea Clarifier, Hermes Agent ile stdio MCP olarak çalışır.
+Idea Clarifier works as a stdio MCP server with Hermes Agent.
 
-### Kurulum
+### Installation
 
 ```powershell
 uv sync
 ```
 
-### Hermes Config Ekleme
+### Adding to Hermes Config
 
-`~/.hermes/config.yaml` dosyasına şu bloğu ekleyin:
+Add the following block to your `~/.hermes/config.yaml`:
 
 ```yaml
 mcp_servers:
@@ -183,18 +183,18 @@ mcp_servers:
     timeout: 300
 ```
 
-Hermes'i yeniden başlattıktan sonra `hermes mcp list` ile görünür hale gelmelidir.
+After restarting Hermes, it should appear when you run `hermes mcp list`.
 
-**Önemli:** Hermes'in MCP client desteğini de kurmanız gerekir:
+**Important:** You must also install Hermes's MCP client support:
 
 ```bash
 pip install 'hermes-agent[mcp]'
 ```
 
-veya tam kurulum:
+Or the full installation:
 
 ```bash
 pip install 'hermes-agent[all]'
 ```
 
-Bu adım atlanırsa Hermes "mcp Python SDK not installed" hatası verebilir.
+Skipping this step may cause Hermes to return the error "mcp Python SDK not installed".
