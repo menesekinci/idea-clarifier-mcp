@@ -155,3 +155,46 @@ AGENT_GUIDE.md                     Detailed question-writing guidance
 - The HTTP daemon listens on `127.0.0.1:7532` when a clarification session starts.
 - Session data is held in memory while the server is running; the temporary session file is for recovery context, not a standalone resume API.
 - The bundled browser interface is currently Turkish, while this README and the generated project overview asset are English.
+
+## Hermes Agent ile Kullanım
+
+Idea Clarifier, Hermes Agent ile stdio MCP olarak çalışır.
+
+### Kurulum
+
+```powershell
+uv sync
+```
+
+### Hermes Config Ekleme
+
+`~/.hermes/config.yaml` dosyasına şu bloğu ekleyin:
+
+```yaml
+mcp_servers:
+  idea-clarifier:
+    command: uv
+    args:
+      - --directory
+      - C:/absolute/path/to/idea-clarifier-mcp
+      - run
+      - idea-clarifier
+    enabled: true
+    timeout: 300
+```
+
+Hermes'i yeniden başlattıktan sonra `hermes mcp list` ile görünür hale gelmelidir.
+
+**Önemli:** Hermes'in MCP client desteğini de kurmanız gerekir:
+
+```bash
+pip install 'hermes-agent[mcp]'
+```
+
+veya tam kurulum:
+
+```bash
+pip install 'hermes-agent[all]'
+```
+
+Bu adım atlanırsa Hermes "mcp Python SDK not installed" hatası verebilir.
