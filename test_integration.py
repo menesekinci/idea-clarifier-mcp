@@ -165,6 +165,7 @@ def test_start_clarification():
             "id": "q_vision_01",
             "category": "project_vision",
             "type": "single_choice",
+            "decision_axis": "primary_problem_type",
             "question": "Bu proje hangi temel sorunu çözüyor?",
             "options": ["Bireysel verimlilik", "Ekip koordinasyonu", "Müşteri hizmeti", "Süreç otomasyonu"],
             "option_descriptions": [
@@ -178,6 +179,7 @@ def test_start_clarification():
             "id": "q_tech_01",
             "category": "tech_stack",
             "type": "single_choice",
+            "decision_axis": "frontend_framework_choice",
             "question": "Hangi framework kullanılsın?",
             "options": ["React", "Vue", "Svelte", "Angular"],
             "option_descriptions": [
@@ -191,6 +193,7 @@ def test_start_clarification():
             "id": "q_multi_01",
             "category": "feature_scope",
             "type": "multi_choice",
+            "decision_axis": "mvp_feature_groups",
             "question": "MVP'de hangi özellik grupları kesinlikle olsun?",
             "options": ["Görev listesi", "Kanban görünümü", "Bildirimler", "Raporlama"],
             "option_descriptions": [
@@ -204,6 +207,7 @@ def test_start_clarification():
             "id": "q_open_01",
             "category": "project_vision",
             "type": "open_text",
+            "decision_axis": "project_name",
             "question": "Projenin adı ne olsun?",
             "max_length": 100
         },
@@ -211,6 +215,7 @@ def test_start_clarification():
             "id": "q_yesno_01",
             "category": "security",
             "type": "yes_no",
+            "decision_axis": "two_factor_auth_requirement",
             "question": "Two-factor authentication gerekli mi?"
         }
     ]
@@ -230,6 +235,110 @@ def test_start_clarification():
     assert "url" in result
     print(f"[TEST] PASS start_clarification passed - session_id: {result['session_id']}")
     return result["session_id"], result["session_token"]
+
+
+def _minimal_clarification_question(qid, axis, question, category="project_vision"):
+    return {
+        "id": qid,
+        "category": category,
+        "type": "single_choice",
+        "decision_axis": axis,
+        "question": question,
+        "options": ["Minimal", "Standart", "Gelişmiş", "Özel"],
+        "option_descriptions": ["Basit tutar.", "Dengeli ilerler.", "Kapsamı büyütür.", "Özel gereksinimlere göre şekillenir."],
+    }
+
+
+def _minimal_plan_question(qid, question):
+    return {
+        "id": qid,
+        "type": "single_choice",
+        "question": question,
+        "options": ["Minimal", "Standart", "Gelişmiş", "Özel"],
+        "option_descriptions": ["Basit tutar.", "Dengeli ilerler.", "Kapsamı büyütür.", "Özel gereksinimlere göre şekillenir."],
+    }
+
+
+def _cleanup_session_files(session_id):
+    sessions.pop(session_id, None)
+    (SESSIONS_DIR / f"{session_id}.json").unlink(missing_ok=True)
+    (TEST_PROJECT / ".clarifier" / "session.json").unlink(missing_ok=True)
+
+
+def test_question_uniqueness_validation():
+    """Reject duplicate ids, duplicate axes, and near-duplicate question text."""
+    duplicate_id = start_clarification(
+        idea="Validation test",
+        project_path=str(TEST_PROJECT),
+        questions=[
+            _minimal_clarification_question("q_same", "axis_one", "İlk sürümde ana kullanıcı kim olacak?"),
+            _minimal_clarification_question("q_same", "axis_two", "İlk sürümde hangi problemi çözeceğiz?"),
+        ],
+    )
+    assert "error" in duplicate_id
+    assert "Duplicate question id" in duplicate_id["error"]
+
+    missing_axis = start_clarification(
+        idea="Validation test",
+        project_path=str(TEST_PROJECT),
+        questions=[
+            {
+                "id": "q_missing_axis",
+                "category": "project_vision",
+                "type": "single_choice",
+                "question": "İlk sürümde ana kullanıcı kim olacak?",
+                "options": ["A", "B"],
+            }
+        ],
+    )
+    assert "error" in missing_axis
+    assert "missing required decision_axis" in missing_axis["error"]
+
+    duplicate_axis = start_clarification(
+        idea="Validation test",
+        project_path=str(TEST_PROJECT),
+        questions=[
+            _minimal_clarification_question("q_axis_1", "mvp_scope_boundary", "MVP kapsamını hangi sınır belirlesin?"),
+            _minimal_clarification_question("q_axis_2", "MVP Scope Boundary", "İlk sürümün kapsam kararı neye göre verilsin?"),
+        ],
+    )
+    assert "error" in duplicate_axis
+    assert "Duplicate decision_axis" in duplicate_axis["error"]
+
+    similar_text = start_clarification(
+        idea="Validation test",
+        project_path=str(TEST_PROJECT),
+        questions=[
+            _minimal_clarification_question("q_text_1", "target_user_segment", "İlk sürümde ana kullanıcı segmenti kim olacak?"),
+            _minimal_clarification_question("q_text_2", "primary_user_group", "İlk sürümde ana kullanıcı segmenti kim olmalı?"),
+        ],
+    )
+    assert "error" in similar_text
+    assert "Near-duplicate question text" in similar_text["error"]
+
+    different_categories = start_clarification(
+        idea="Validation test",
+        project_path=str(TEST_PROJECT),
+        questions=[
+            _minimal_clarification_question("q_cat_1", "project_user_priority", "İlk sürümde ana kullanıcı segmenti kim olacak?", "project_vision"),
+            _minimal_clarification_question("q_cat_2", "onboarding_user_priority", "İlk sürümde ana kullanıcı segmenti kim olmalı?", "core_flows"),
+        ],
+    )
+    assert "error" not in different_categories, different_categories
+    _cleanup_session_files(different_categories["session_id"])
+
+    duplicate_plan_text = start_plan_clarification(
+        context="Validation test",
+        project_path=str(TEST_PROJECT),
+        questions=[
+            _minimal_plan_question("p_1", "OAuth eklerken kullanıcı girişi nasıl çalışmalı?"),
+            _minimal_plan_question("p_2", "OAuth eklerken kullanıcı girişi nasıl çalışmalı?"),
+        ],
+    )
+    assert "error" in duplicate_plan_text
+    assert "Near-duplicate question text" in duplicate_plan_text["error"]
+
+    print("[TEST] PASS question uniqueness validation passed")
 
 
 def test_add_glossary(session_id):
@@ -442,7 +551,15 @@ def main():
     else:
         tests_failed += 1
 
-    # Test 2: Intent clarification
+    # Test 2: Question uniqueness validation
+    try:
+        test_question_uniqueness_validation()
+        tests_passed += 1
+    except Exception as e:
+        print(f"[TEST] FAIL question uniqueness validation failed: {e}")
+        tests_failed += 1
+
+    # Test 3: Intent clarification
     try:
         if test_intent_clarification_flow():
             tests_passed += 1
@@ -452,7 +569,7 @@ def main():
         print(f"[TEST] FAIL intent clarification flow failed: {e}")
         tests_failed += 1
     
-    # Test 3: Start clarification
+    # Test 4: Start clarification
     try:
         session_id, session_token = test_start_clarification()
         tests_passed += 1
@@ -461,7 +578,7 @@ def main():
         tests_failed += 1
         return
     
-    # Test 4: Add glossary
+    # Test 5: Add glossary
     try:
         test_add_glossary(session_id)
         tests_passed += 1
@@ -469,7 +586,7 @@ def main():
         print(f"[TEST] ✗ add_glossary failed: {e}")
         tests_failed += 1
     
-    # Test 5: Browser UI
+    # Test 6: Browser UI
     try:
         if test_browser_ui(session_id, session_token):
             tests_passed += 1
@@ -479,7 +596,7 @@ def main():
         print(f"[TEST] FAIL Browser UI test failed: {e}")
         tests_failed += 1
     
-    # Test 6: Submit answers
+    # Test 7: Submit answers
     try:
         test_submit_answers(session_id, session_token)
         tests_passed += 1
@@ -487,7 +604,7 @@ def main():
         print(f"[TEST] FAIL Submit answers failed: {e}")
         tests_failed += 1
     
-    # Test 7: Get answers
+    # Test 8: Get answers
     try:
         test_get_answers(session_id)
         tests_passed += 1
@@ -495,7 +612,7 @@ def main():
         print(f"[TEST] FAIL get_answers failed: {e}")
         tests_failed += 1
     
-    # Test 8: Suggest followups
+    # Test 9: Suggest followups
     try:
         test_suggest_followups(session_id)
         tests_passed += 1
@@ -503,7 +620,7 @@ def main():
         print(f"[TEST] FAIL suggest_followups failed: {e}")
         tests_failed += 1
     
-    # Test 9: Write decisions
+    # Test 10: Write decisions
     try:
         test_write_decisions(session_id)
         tests_passed += 1

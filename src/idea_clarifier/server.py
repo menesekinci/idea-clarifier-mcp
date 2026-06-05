@@ -1,10 +1,12 @@
 import json
 import os
+import re
 import tempfile
 import threading
 import time
 import uuid
 import webbrowser
+from difflib import SequenceMatcher
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -26,17 +28,17 @@ mcp = FastMCP(
         "   are single_choice, some are multi_choice.\n"
         "   After get_answers returns completed, internally summarize an intent brief for yourself, then create\n"
         "   the second-stage questions. Do not write the intent brief to disk.\n\n"
-        "2. start_clarification — NEW project idea AFTER intent clarification (60-70 questions, categorised, writes decisions.json):\n"
-        "   a. Every question MUST represent one decision_axis. Keep a private decision-axis ledger.\n"
-        "      Never ask the same decision_axis twice, even with different wording.\n"
-        "   b. Layer 1 — project_vision FIRST (7 questions): purpose, audience, platform, "
+        "2. start_clarification — NEW project idea AFTER intent clarification (12-25 targeted questions, categorised, writes decisions.json):\n"
+        "   a. Every question MUST include one unique decision_axis. The MCP validates this contract\n"
+        "      and rejects duplicate axes or near-duplicate question text before opening a session.\n"
+        "   b. Layer 1 — project_vision FIRST: purpose, audience, platform, "
         "user actions, scale, revenue, differentiator.\n"
-        "   c. Layer 2 — product layer SECOND (5+ each): core_flows, feature_scope, content_model, ui_ux.\n"
+        "   c. Layer 2 — product layer SECOND as needed: core_flows, feature_scope, content_model, ui_ux.\n"
         "      core_flows: happy path, reject/undo, deadline trigger, concurrent edit, onboarding.\n"
         "      feature_scope: MVP must-haves, out-of-scope, priority rule, success metric, paid tier boundary.\n"
         "      content_model: entity hierarchy, state machine, assignment rules, required fields, custom fields.\n"
         "      ui_ux: navigation model, dashboard/home, view types, empty states, mobile-vs-desktop priority.\n"
-        "   d. Layer 3 — technical layer LAST (5+ each): tech_stack, architecture, database, security, "
+        "   d. Layer 3 — technical layer LAST only when needed: tech_stack, architecture, database, security, "
         "performance, api, deployment, business_logic.\n"
         "      Ask technical questions only when the intent answers make those decisions necessary now.\n"
         "   e. Questions support 4 types via the 'type' field. For choice questions, explicitly set\n"
@@ -381,6 +383,98 @@ def _open_browser_session(session: dict) -> dict[str, Any]:
     }
 
 
+SIMILAR_QUESTION_THRESHOLD = 0.86
+DUPLICATE_FIX_HINT = (
+    "Merge these into one question or assign genuinely different decision_axis values."
+)
+
+
+def _normalize_for_duplicate_check(value: Any) -> str:
+    text = str(value or "").casefold().strip()
+    return re.sub(r"[\W_]+", " ", text).strip()
+
+
+def _validate_question_uniqueness(
+    questions: list[dict[str, Any]],
+    *,
+    require_decision_axis: bool,
+    compare_within_category: bool,
+) -> dict[str, str] | None:
+    ids: dict[str, str] = {}
+    axes: dict[str, tuple[str, str]] = {}
+    seen_texts: list[tuple[str, str, str, str]] = []
+
+    for index, q in enumerate(questions, 1):
+        qid = str(q.get("id") or "").strip()
+        label = qid or f"#{index}"
+        if not qid:
+            return {"error": f"Question {label}: missing required id. {DUPLICATE_FIX_HINT}"}
+
+        normalized_id = _normalize_for_duplicate_check(qid)
+        if not normalized_id:
+            return {"error": f"Question '{qid}': id must contain letters or numbers. {DUPLICATE_FIX_HINT}"}
+        if normalized_id in ids:
+            return {
+                "error": (
+                    f"Duplicate question id '{qid}' conflicts with '{ids[normalized_id]}'. "
+                    f"{DUPLICATE_FIX_HINT}"
+                )
+            }
+        ids[normalized_id] = qid
+
+        question_text = str(q.get("question") or "").strip()
+        if not question_text:
+            return {"error": f"Question '{qid}': missing required question text. {DUPLICATE_FIX_HINT}"}
+
+        normalized_axis = ""
+        if require_decision_axis:
+            axis = str(q.get("decision_axis") or "").strip()
+            if not axis:
+                return {
+                    "error": (
+                        f"Question '{qid}': missing required decision_axis. "
+                        f"{DUPLICATE_FIX_HINT}"
+                    )
+                }
+            normalized_axis = _normalize_for_duplicate_check(axis)
+            if not normalized_axis:
+                return {
+                    "error": (
+                        f"Question '{qid}': decision_axis must contain letters or numbers. "
+                        f"{DUPLICATE_FIX_HINT}"
+                    )
+                }
+            if normalized_axis in axes:
+                other_id, other_axis = axes[normalized_axis]
+                return {
+                    "error": (
+                        f"Duplicate decision_axis '{axis}' on question '{qid}' conflicts with "
+                        f"question '{other_id}' using '{other_axis}'. {DUPLICATE_FIX_HINT}"
+                    )
+                }
+            axes[normalized_axis] = (qid, axis)
+
+        normalized_text = _normalize_for_duplicate_check(question_text)
+        category = str(q.get("category") or "") if compare_within_category else "__all__"
+        for other_id, other_category, other_text, other_raw_text in seen_texts:
+            if other_category != category:
+                continue
+            similarity = SequenceMatcher(None, normalized_text, other_text).ratio()
+            if similarity >= SIMILAR_QUESTION_THRESHOLD:
+                scope = f" in category '{category}'" if compare_within_category else ""
+                return {
+                    "error": (
+                        f"Near-duplicate question text{scope}: question '{qid}' is too similar "
+                        f"to question '{other_id}' ({similarity:.2f}). "
+                        f"Current: '{question_text}'. Existing: '{other_raw_text}'. "
+                        f"{DUPLICATE_FIX_HINT}"
+                    )
+                }
+        seen_texts.append((qid, category, normalized_text, question_text))
+
+    return None
+
+
 @mcp.tool()
 def start_intent_clarification(idea: str, project_path: str) -> dict[str, Any]:
     """Open the required first-stage intent clarification session for a new project idea.
@@ -459,9 +553,9 @@ def start_clarification(
 
     IMPORTANT: For new project ideas, first run start_intent_clarification and use
     those answers to form an internal intent brief. Then create these questions.
-    Always start with 'project_vision' questions (at least 7) before asking any
-    technical questions. Each question must map to one unique decision_axis; do
-    not ask the same decision twice with different wording.
+    Start with the needed 'project_vision' questions before asking any technical
+    questions. Each question must map to one unique decision_axis; duplicate axes
+    or near-duplicate question text are rejected before the browser session opens.
     When technical questions include jargon, supply a glossary so the user
     can look up unfamiliar terms during the session.
 
@@ -470,6 +564,14 @@ def start_clarification(
     """
     if not questions:
         return {"error": "questions list cannot be empty"}
+
+    uniqueness_error = _validate_question_uniqueness(
+        questions,
+        require_decision_axis=True,
+        compare_within_category=True,
+    )
+    if uniqueness_error:
+        return uniqueness_error
 
     # Normalize question types for backward compat + defaults
     for q in questions:
@@ -837,6 +939,14 @@ def start_plan_clarification(
     """
     if not questions:
         return {"error": "questions list cannot be empty"}
+
+    uniqueness_error = _validate_question_uniqueness(
+        questions,
+        require_decision_axis=False,
+        compare_within_category=False,
+    )
+    if uniqueness_error:
+        return uniqueness_error
 
     for q in questions:
         q.setdefault("type", "single_choice")

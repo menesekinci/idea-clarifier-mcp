@@ -1,0 +1,10 @@
+interface:
+  display_name: "Idea Clarifier MCP"
+  short_description: "Intent-first MCP clarification guide"
+  default_prompt: "Use $idea-clarifier-mcp to clarify this project idea before planning."
+
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "idea-clarifier"
+      description: "Idea Clarifier MCP server exposing clarification browser-session tools."

@@ -7,7 +7,7 @@ Idea Clarifier MCP turns an unclear product idea or a pending implementation pla
 ## What It Does
 
 - Opens a browser-based Q&A session from an MCP tool call.
-- Supports intent-first deep clarification for new project ideas and shorter pre-plan clarification for existing projects.
+- Supports intent-first targeted clarification for new project ideas and shorter pre-plan clarification for existing projects.
 - Keeps temporary session state in the target project for crash recovery.
 - Returns unresolved and AI-delegated decisions to the MCP host before final output is written.
 - Produces structured JSON that can feed planning, scoping, architecture, and implementation work.
@@ -91,6 +91,18 @@ The project uses `uv.lock`, so `uv` is the shortest setup path.
 uv sync
 ```
 
+## Install the Codex Skill
+
+The MCP server exposes tools, but the Codex skill teaches the agent the correct clarification workflow. Install the bundled skill into Codex's skill directory:
+
+```powershell
+$target = "$env:USERPROFILE\.codex\skills\idea-clarifier-mcp"
+New-Item -ItemType Directory -Force -Path (Split-Path $target) | Out-Null
+Copy-Item -Recurse -Force .\skills\idea-clarifier-mcp $target
+```
+
+After this, Codex can invoke it as `$idea-clarifier-mcp`. The skill still requires the `idea-clarifier` MCP server to be configured and running through the MCP host.
+
 ## Run
 
 Start the stdio MCP server from the repository root:
@@ -121,13 +133,13 @@ For an MCP host configuration, point the host at the same command and repository
 
 For new project ideas, call `start_intent_clarification(idea, project_path)` first. It opens a fixed seven-question, option-based intent session and writes no output files. The user can add a custom answer alongside selected options. After the user submits, call `get_answers(session_id)` once, use the raw answers to build an internal intent brief, then generate the second-stage questions.
 
-`start_clarification` expects an `idea`, a `project_path`, and a non-empty list of questions. Each new-project question carries:
+`start_clarification` expects an `idea`, a `project_path`, and a non-empty list of roughly 12-25 targeted questions. Each new-project question carries:
 
 - A unique `id`
 - A `category`
 - An explicit `type` for choice questions: `single_choice` when only one answer should win, `multi_choice` when multiple answers can be valid
 - A user-facing `question`
-- One unique `decision_axis` concept managed by the agent; do not ask the same decision twice with different wording
+- One unique `decision_axis`; the MCP rejects duplicate axes or near-duplicate question text before opening a browser session
 - 2-5 `options` for choice questions
 - Optional `option_descriptions`, one per option when provided
 
@@ -147,6 +159,7 @@ src/idea_clarifier/server.py       MCP tools and session finalization
 src/idea_clarifier/daemon.py       FastAPI daemon for the local Q&A UI
 src/idea_clarifier/static/index.html
                                    Browser session interface
+skills/idea-clarifier-mcp/          Bundled Codex skill for agent workflow guidance
 AGENT_GUIDE.md                     Detailed question-writing guidance
 ```
 
